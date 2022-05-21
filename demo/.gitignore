@@ -1,0 +1,21 @@
+*.blend[0-9]*
+assets/selected.g3dj
+assets/selected.shapes
+
+.idea/
+*.iml
+*.ipr
+.gradle/
+**/build/
+!src/**/build/
+
+# Cache of project
+.gradletasknamecache
+
+# Eclipse Gradle plugin generated files
+# Eclipse Core
+.project
+# JDT-specific (Eclipse Java Development Tools)
+.classpath
+
+**/gradle-wrapper.jar
