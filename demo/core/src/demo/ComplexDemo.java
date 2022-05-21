@@ -6,8 +6,8 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
-import haz00.modelshape.ModelShape;
-import haz00.modelshape.NodeShape;
+import com.haz00.g3dmodelshape.ModelShape;
+import com.haz00.g3dmodelshape.NodeShape;
 
 public class ComplexDemo extends BaseDemo {
 

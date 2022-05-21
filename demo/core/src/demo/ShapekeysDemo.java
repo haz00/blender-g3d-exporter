@@ -3,8 +3,8 @@ package demo;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.model.Node;
-import haz00.modelshape.ModelShape;
-import haz00.modelshape.NodeShape;
+import com.haz00.g3dmodelshape.ModelShape;
+import com.haz00.g3dmodelshape.NodeShape;
 
 public class ShapekeysDemo extends BaseDemo {
 

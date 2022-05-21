@@ -3,7 +3,7 @@ package demo;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
-import haz00.modelshape.ModelShape;
+import com.haz00.g3dmodelshape.ModelShape;
 
 public class SelectedDemo extends BaseDemo {
 
