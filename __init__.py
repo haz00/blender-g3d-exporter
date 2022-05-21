@@ -22,6 +22,12 @@ if "bpy" in locals():
     importlib.reload(export_operator)
 else:
     import bpy
+    import sys
+    import os
+
+    # add addon directory to classpath
+    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
     import utils
     import domain
     import g3dj_encoder
