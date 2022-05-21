@@ -17,7 +17,7 @@ Libgdx default shader does not handle normal mapping and other rich PRB features
 
 # Usage
 ## Installation
-1. Download latest version from release page
+1. Download latest version from [release page](https://github.com/haz00/blender-g3d-exporter/releases)
 2. Blender - Settings - Addons - Import
 3. Do not forget enable checkbox
 4. File - Export - .g3dj
