@@ -2,6 +2,7 @@
 export_demo_script.py
 assets/selected.g3dj
 assets/selected.shapes
+core/src/demo/SelectedDemo.java
 
 .idea/
 *.iml
