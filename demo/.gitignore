@@ -1,4 +1,5 @@
-*.blend[0-9]*
+*.blend*
+export_demo_script.py
 assets/selected.g3dj
 assets/selected.shapes
 
