@@ -24,8 +24,6 @@ public class DesktopLauncher {
             demo = new AnimationShapekeysDemo();
         } else if ("complex".equals(type)) {
             demo = new ComplexDemo();
-        } else if ("selected".equals(type)) {
-            demo = new SelectedDemo();
         } else
             throw new IllegalArgumentException(type);
 

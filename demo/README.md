@@ -3,7 +3,7 @@
 2. `cd demo`
 3. `./gradlew simple`
 
-Possible commands: `simple`, `shapekeys`, `skeleton`, `animation`, `animation_shapekeys`, `complex`, `selected`
+Possible commands: `simple`, `shapekeys`, `skeleton`, `animation`, `animation_shapekeys`, `complex`
 
 ## Run with IntelliJ IDEA
 1. Clone whole repository project
