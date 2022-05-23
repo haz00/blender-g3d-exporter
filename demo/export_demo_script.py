@@ -1,28 +1,28 @@
 # <pep8 compliant>
 
+import bpy
 import sys
 from pathlib import Path
+import importlib
 
-# reload or import scripts
-if "bpy" in locals():
-    import importlib
-    importlib.reload(utils)
-    importlib.reload(domain)
-    importlib.reload(g3dj_encoder)
-    importlib.reload(generator)
-    importlib.reload(export_operator)
-else:
-    import bpy
-    
+module_path = str(Path(bpy.data.filepath).parents[1])
+
+if module_path not in sys.path:
     # add parent directory to classpath
-    module_path = str(Path(bpy.data.filepath).parents[1])
     sys.path.append(module_path)
+        
+import utils
+import domain
+import g3dj_encoder
+import generator
+import export_operator
     
-    import utils
-    import domain
-    import g3dj_encoder
-    import generator
-    import export_operator
+# reload scripts
+importlib.reload(utils)
+importlib.reload(domain)
+importlib.reload(g3dj_encoder)
+importlib.reload(generator)
+importlib.reload(export_operator)
 
 # relative to .blend
 assets_basedir = Path(bpy.data.filepath).parent / "assets"
