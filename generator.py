@@ -43,6 +43,7 @@ class G3dGenerator(object):
         self.add_bone_tip = True
         self.apply_modifiers = True
         self.fps = bpy.context.scene.render.fps
+        self.primitive_type = 'TRIANGLES'
         self.flat_nodes: dict[str, GNode] = dict()
 
     def new_material(self, mat: bpy.types.Material, index: int) -> GMaterial:
@@ -53,7 +54,7 @@ class G3dGenerator(object):
 
     def gen_node_part(self, node: GNode, mesh: GMesh, opt: GMeshGeneratorOptions, mat: GMaterial):
         # TODO reuse mesh part by using blender mesh 
-        mesh_part = GMeshPart(f'{node.id}_part{mat.index}')
+        mesh_part = GMeshPart(f'{node.id}_part{mat.index}', self.primitive_type)
         mesh.parts.append(mesh_part)
         print(f'add mesh part: {mesh_part.id}')
 

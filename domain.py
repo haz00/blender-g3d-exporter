@@ -38,9 +38,9 @@ class GShapeKey(object):
 
 
 class GMeshPart(object):
-    def __init__(self, id: str):
+    def __init__(self, id: str, type: str):
         self.id: str = id
-        self.type: str = 'TRIANGLES'
+        self.type: str = type
         self.indices: list[int] = []
 
     def to_dict(self) -> dict[str, any]:

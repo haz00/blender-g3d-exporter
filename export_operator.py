@@ -3,7 +3,7 @@
 import pathlib
 import bpy
 from bpy_extras.io_utils import ExportHelper
-from bpy.props import BoolProperty, IntProperty
+from bpy.props import BoolProperty, IntProperty, EnumProperty
 from bpy.types import Operator
 from g3dj_encoder import G3DJsonEncoder
 from generator import G3dGenerator
@@ -107,9 +107,21 @@ class G3djExportOperator(Operator, ExportHelper):
         default=24,
     )
 
+    primitive_type: EnumProperty(
+        name="Primitive type",
+        description="Used to specify the primitive type of the mesh part",
+        default='TRIANGLES',
+        items=(
+            ('TRIANGLES', 'TRIANGLES', ''),
+            ('LINES', 'LINES', ''),
+            ('POINTS', 'POINTS', ''),
+            ('TRIANGLE_STRIP', 'TRIANGLE_STRIP', ''),
+            ('LINE_STRIP', 'LINE_STRIP', ''))
+    )
+
     def execute(self, context):
         """calls by blender"""
-        
+
         gen = G3dGenerator()
         gen.y_up = self.y_up
         gen.use_normal = self.use_normal
@@ -125,6 +137,7 @@ class G3djExportOperator(Operator, ExportHelper):
         gen.add_bone_tip = self.add_bone_tip
         gen.apply_modifiers = self.apply_modifiers
         gen.fps = self.fps
+        gen.primitive_type = self.primitive_type
 
         objects = bpy.context.selected_objects if (self.selected_only) else bpy.data.objects
 
