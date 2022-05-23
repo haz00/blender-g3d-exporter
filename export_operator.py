@@ -47,6 +47,15 @@ class G3djExportOperator(Operator, ExportHelper):
         default=True,
     )
 
+    use_color_type: EnumProperty(
+        name="Vertex color type",
+        description="",
+        default='COLOR',
+        items=(
+            ('COLOR', 'COLOR', 'RGBA floats'),
+            ('COLORPACKED', 'COLORPACKED', 'Pack RGBA floats into single int'))
+    )
+    
     use_uv: BoolProperty(
         name="UV",
         description="",
@@ -126,6 +135,7 @@ class G3djExportOperator(Operator, ExportHelper):
         gen.y_up = self.y_up
         gen.use_normal = self.use_normal
         gen.use_color = self.use_color
+        gen.use_color_type = self.use_color_type
         gen.use_uv = self.use_uv
         gen.use_tangent = self.use_tangent
         gen.use_binormal = self.use_binormal

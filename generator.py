@@ -8,7 +8,7 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 
 from domain import G3D, GAnimation, GBoneAnimation, GBoneKeyframe, GBoneMatrix, GMaterial, GMesh, GMeshPart, GNode, GNodePart, GShape, GShapeKey, GVertexAttribute
 
-from utils import conv_uv, hash_vert
+from utils import conv_uv, hash_vert, pack_color
 
 
 class GMeshGeneratorOptions(object):
@@ -32,6 +32,7 @@ class G3dGenerator(object):
         self.y_up = True
         self.use_normal = True
         self.use_color = True
+        self.use_color_type = 'COLOR'
         self.use_uv = True
         self.use_tangent = True
         self.use_binormal = True
@@ -123,9 +124,11 @@ class G3dGenerator(object):
                     vert_data.extend(loop.bitangent)
 
                 if (opt.color_layer != None):
-                    # TODO color packed
-                    vert_data.extend(
-                        opt.color_layer.data[loop_index].color)  # rgba
+                    col = opt.color_layer.data[loop_index].color # rgba
+                    if (self.use_color_type == 'COLORPACKED'):
+                        vert_data.append(pack_color(col))
+                    else:
+                        vert_data.extend(col)
 
                 if (opt.uv_layer != None):
                     uv = opt.uv_layer.data[loop_index].uv
@@ -193,10 +196,13 @@ class G3dGenerator(object):
             attributes.append(GVertexAttribute('BINORMAL', 3))
 
         if (self.use_color and len(opt.final_mesh.vertex_colors) > 0):
-            opt.color_layer = next(
-                filter(lambda layer: layer.active_render, opt.final_mesh.vertex_colors))
-            # TODO color packed
-            attributes.append(GVertexAttribute('COLOR', 4))
+            opt.color_layer = next(filter(lambda layer: layer.active_render, opt.final_mesh.vertex_colors))
+
+            if (self.use_color_type == 'COLORPACKED'):
+                attributes.append(GVertexAttribute('COLORPACKED', 1))
+            else:
+                attributes.append(GVertexAttribute('COLOR', 4))
+                
 
         if (self.use_uv and len(opt.final_mesh.uv_layers) > 0):
             opt.uv_layer = next(
