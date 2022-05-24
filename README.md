@@ -10,13 +10,13 @@ The demo folder contains libgdx project with examples.
 - Y-up
 - Bake bone animations
 - Vertex attributes customization
-- Export key shapes as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
+- Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
-## Worth noting
+##### Worth noting
 Libgdx default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
 
 # Usage
-## Installation
+### Installation
 1. Download latest version from [release page](https://github.com/haz00/blender-g3d-exporter/releases)
 2. Blender - Settings - Addons - Import
 3. Do not forget enable checkbox
@@ -42,7 +42,7 @@ https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
 - Improve g3dj encoder formatter 
 
 # License
-GNU GPLv3 TODO
+GNU GPLv3 [LICENSE](https://github.com/haz00/blender-g3d-exporter/blob/master/LICENSE)
 
 blender-g3d-exporter Copyright (C) 2022 haz00 (haz00ku@gmail.com)
 
