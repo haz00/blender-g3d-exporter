@@ -24,7 +24,9 @@ Libgdx default shader does not handle normal mapping and other rich PRB features
 5. Follow addon settings
 
 # Useful links
-[g3d specification](https://github.com/libgdx/fbx-conv/wiki/Version-0.1-%28libgdx-0.9.9%29)
+[LibGDX Model user guide](https://libgdx.com/wiki/graphics/3d/quick-start)
+
+[G3D Specification](https://github.com/libgdx/fbx-conv/wiki/Version-0.1-%28libgdx-0.9.9%29)
 
 https://docs.blender.org/api/current/info_quickstart.html
 
@@ -33,7 +35,6 @@ https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules
 https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
 
 # TODO
-- Color packed attribute
 - Optimize mesh part deduplication
 - Multiple uv maps
 - Optimize animation keyframes
