@@ -3,7 +3,7 @@
 set blender_addons="%appdata%\Blender Foundation\Blender\3.0\scripts\addons"
 set addon_home=%blender_addons%\blender_g3d_exporter
 
-if not exist %addon_home% mrdir %addon_home%
+if not exist %addon_home% mkdir %addon_home%
 
 copy /Y generator.py %addon_home%
 copy /Y domain.py %addon_home%
