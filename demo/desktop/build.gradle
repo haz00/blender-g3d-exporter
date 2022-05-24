@@ -7,7 +7,7 @@ project.ext.assetsDir = new File("../assets")
 
 import org.gradle.internal.os.OperatingSystem
 
-for (cmd in ['simple', 'complex', 'shapekeys', 'skeleton', 'animation', 'animation_shapekeys', 'selected']) {
+for (cmd in ['simple', 'complex', 'shapekeys', 'skeleton', 'animation', 'animation_shapekeys']) {
     final cmdFinal = cmd
     tasks.register(cmdFinal) {
         it.group = 'demo'

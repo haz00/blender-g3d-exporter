@@ -8,13 +8,13 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 
 from domain import G3D, GAnimation, GBoneAnimation, GBoneKeyframe, GBoneMatrix, GMaterial, GMesh, GMeshPart, GNode, GNodePart, GShape, GShapeKey, GVertexAttribute
 
-from utils import conv_uv, hash_vert, pack_color
+from utils import conv_uv, flatten, hash_vert, pack_color
 
 
 class GMeshGeneratorOptions(object):
     """data used for cascade generation within single scene object"""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.original: bpy.types.Object = None
         # final triangulated object with applyed modifers if possible
         self.final_mesh: bpy.types.Mesh = None
@@ -22,8 +22,14 @@ class GMeshGeneratorOptions(object):
         self.color_layer: bpy.types.MeshLoopColorLayer = None
         self.uv_layer: bpy.types.MeshUVLoopLayer = None
         self.armature: bpy.types.Object = None
-        self.blendweights: int = 0
+        self.max_blendweights: int = 0
         self.shape: GShape = None
+
+
+class GVertexBlendweightData(object):
+    def __init__(self, part_bone_index: int, weight: float):
+        self.part_bone_index = part_bone_index
+        self.weight = weight
 
 
 class G3dGenerator(object):
@@ -49,8 +55,7 @@ class G3dGenerator(object):
 
     def new_material(self, mat: bpy.types.Material, index: int) -> GMaterial:
         gmat = GMaterial(mat.name, index)
-        gmat.setup_principled(PrincipledBSDFWrapper(
-            mat.material, is_readonly=True))
+        gmat.setup_principled(PrincipledBSDFWrapper(mat.material, is_readonly=True))
         return gmat
 
     def gen_node_part(self, node: GNode, mesh: GMesh, opt: GMeshGeneratorOptions, mat: GMaterial):
@@ -65,36 +70,46 @@ class G3dGenerator(object):
 
         self.gen_vertices(mesh, opt, mesh_part, node_part, mat.index)
 
+    def normalize_blendweights(self, blendweights: list[GVertexBlendweightData]):
+        total = sum(b.weight for b in blendweights)
+        
+        for b in blendweights:
+            b.weight /= total
+
     def gen_blendweights(self, node_part: GNodePart, vert: bpy.types.MeshVertex, opt: GMeshGeneratorOptions) -> list[float]:
-        blendweights = []
 
-        for ig in range(0, opt.blendweights):
+        blendweights: list[GVertexBlendweightData] = []
 
-            weight = 0.0
-            part_bone_index = ig
+        # search bone weight by each group assigned to vertex
+        for vgroup in vert.groups:
+            
+            if (len(blendweights) == opt.max_blendweights):
+                break
 
-            if (ig < len(vert.groups)):
-                # TODO normalize when all vertex weights collected
-                weight = vert.groups[ig].weight
-                group_index = vert.groups[ig].group
-                group_name = opt.original.vertex_groups[group_index].name
+            group_index = vgroup.group
+            group_name = opt.original.vertex_groups[group_index].name
 
-                gbone = node_part.get_bone(group_name)
+            gbone = node_part.get_bone(group_name)
 
-                if (gbone == None):
-                    # FIXME а если группа не найдена?
-                    bone = next(filter(lambda b: b.name ==
-                                group_name, opt.armature.data.bones))
+            if (gbone == None):
+                # find bone by group name, register it if found 
+                for bone in opt.armature.data.bones:
+                    if (bone.name == group_name):
+                        # TODO must be relative to armature or parent node?
+                        gbone = GBoneMatrix(group_name, len(node_part.bones), bone.matrix_local)
+                        node_part.bones.append(gbone)
 
-                    # TODO must be relative to armature or parent node?
-                    gbone = GBoneMatrix(group_name, len(node_part.bones), bone.matrix_local)
-                    node_part.bones.append(gbone)
+            if (gbone != None):
+                blendweights.append(GVertexBlendweightData(gbone.index, vgroup.weight))
+        
+        # necessary to add empty blendweights if array is not full yet
+        for i in range(opt.max_blendweights - len(blendweights)):
+            blendweights.append(GVertexBlendweightData(0, 0))
 
-                part_bone_index = gbone.index
+        self.normalize_blendweights(blendweights)
 
-            blendweights.extend([part_bone_index, weight])
-
-        return blendweights
+        # unwrap values to linear structure
+        return flatten([[b.part_bone_index, b.weight] for b in blendweights])
 
     def gen_vertices(self, mesh: GMesh, opt: GMeshGeneratorOptions, mesh_part: GMeshPart, node_part: GMeshPart, mat_index: int):
         for polygon in opt.final_mesh.polygons:
@@ -216,14 +231,14 @@ class G3dGenerator(object):
             print(f'has armature: {opt.armature.name}')
 
             for v in opt.final_mesh.vertices:
-                opt.blendweights = max(opt.blendweights, len(v.groups))
-                opt.blendweights = min(
-                    opt.blendweights, self.max_bones_per_vertex)
+                opt.max_blendweights = max(opt.max_blendweights, len(v.groups))
+                opt.max_blendweights = min(
+                    opt.max_blendweights, self.max_bones_per_vertex)
 
-                if (opt.blendweights == self.max_bones_per_vertex):
+                if (opt.max_blendweights == self.max_bones_per_vertex):
                     break
 
-            for i in range(opt.blendweights):
+            for i in range(opt.max_blendweights):
                 attributes.append(GVertexAttribute('BLENDWEIGHT' + str(i), 2))
 
         if (mesh != None):
@@ -444,13 +459,8 @@ class G3dGenerator(object):
                     self.gen_armature_node(obj, g3d)
 
             elif (obj.type == 'MESH'):
-                # ensure the attached armature is also in export list
-                armature_selected = False
-
-                if (self.use_armature):
-                    armature = obj.find_armature()
-                    if (armature):
-                        armature_selected = armature.name in objects
+                # ensure the attached armature is also in export list - requires to blendweights
+                armature_selected = obj.find_armature() in objects if (self.use_armature) else False
 
                 self.gen_mesh_node(obj, g3d, armature_selected)
 
