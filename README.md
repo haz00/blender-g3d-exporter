@@ -1,9 +1,9 @@
 # !!!WORK IN PROGRESS!!!
 
 # Overview
-Export Blender scene to native libgdx model format.
+Export Blender scene to native LibGDX model format.
 
-The demo folder contains libgdx project with examples.
+The demo folder contains LibGDX project with examples.
 
 ## Features
 - Blender 2.8, 3.0
@@ -13,7 +13,7 @@ The demo folder contains libgdx project with examples.
 - Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
 ##### Worth noting
-Libgdx default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
+LibGDX default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
 
 # Usage
 ### Installation
@@ -35,7 +35,6 @@ https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules
 https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
 
 # TODO
-- Optimize mesh part deduplication
 - Multiple uv maps
 - Optimize animation keyframes
 - g3db
