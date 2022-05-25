@@ -73,8 +73,9 @@ class G3dGenerator(object):
     def normalize_blendweights(self, blendweights: list[GVertexBlendweightData]):
         total = sum(b.weight for b in blendweights)
         
-        for b in blendweights:
-            b.weight /= total
+        if (total > 0):
+            for b in blendweights:
+                b.weight /= total
 
     def gen_blendweights(self, node_part: GNodePart, vert: bpy.types.MeshVertex, opt: GMeshGeneratorOptions) -> list[float]:
 
