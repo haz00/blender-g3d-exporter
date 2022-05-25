@@ -2,17 +2,16 @@ package demo;
 
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.haz00.g3dmodelshape.ModelShape;
-import com.haz00.g3dmodelshape.NodeShape;
+import com.haz00.g3dmodelshape.MeshShape;
 
 public class ShapekeysDemo extends BaseDemo {
 
     private ModelInstance inst;
-    private NodeShape shape32;
-    private NodeShape shape33;
-    private NodeShape shape34;
-    private NodeShape shape35;
+    private MeshShape rightShape;
+    private MeshShape leftShape;
+    private MeshShape backShape;
+    private MeshShape forwardShape;
 
     @Override
     public void create() {
@@ -28,42 +27,34 @@ public class ShapekeysDemo extends BaseDemo {
         ModelShape modelShape = assets.get("shapekeys.shapes", ModelShape.class);
 
         // see demo.blend file for reference
-        Node node32 = inst.getNode("arrow.032");
-        shape32 = modelShape.getShape(node32.id);
-        shape32.setMesh(node32);
-        shape32.setBasis("Basis");
+        rightShape = modelShape.getShape("arrow R mesh");
+        rightShape.setMesh(inst.getNode("arrow R"));
 
-        Node node33 = inst.getNode("arrow.033");
-        shape33 = modelShape.getShape(node33.id);
-        shape33.setMesh(node33);
-        shape33.setBasis("Basis");
+        leftShape = modelShape.getShape("arrow L mesh");
+        leftShape.setMesh(inst.getNode("arrow L"));
 
-        Node node34 = inst.getNode("arrow.034");
-        shape34 = modelShape.getShape(node34.id);
-        shape34.setMesh(node34);
-        shape34.setBasis("Basis");
+        backShape = modelShape.getShape("arrow B mesh");
+        backShape.setMesh(inst.getNode("arrow B"));
 
-        Node node35 = inst.getNode("arrow.035");
-        shape35 = modelShape.getShape(node35.id);
-        shape35.setMesh(node35);
-        shape35.setBasis("Basis");
+        forwardShape = modelShape.getShape("arrow F mesh");
+        forwardShape.setMesh(inst.getNode("arrow F"));
     }
 
     @Override
     void renderDemo() {
-        shape32.setKey("Key 1", sin01());
-        shape32.calculate();
+        rightShape.setKey("Key 1", sin01());
+        rightShape.calculate();
 
-        shape33.setKey("Key 1", sin01());
-        shape33.calculate();
+        leftShape.setKey("Key 1", sin01());
+        leftShape.calculate();
 
-        shape34.setKey("Key 1", sin01());
-        shape34.setKey("Key 2", sin01());
-        shape34.calculate();
+        backShape.setKey("Key 1", sin01());
+        backShape.setKey("Key 2", sin01());
+        backShape.calculate();
 
-        shape35.setKey("Key 1", sin01());
-        shape35.setKey("Key 2", sin01());
-        shape35.calculate();
+        forwardShape.setKey("Key 1", sin01());
+        forwardShape.setKey("Key 2", sin01());
+        forwardShape.calculate();
 
         modelBatch.render(inst, env);
     }

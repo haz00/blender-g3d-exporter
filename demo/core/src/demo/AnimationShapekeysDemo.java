@@ -6,14 +6,14 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.haz00.g3dmodelshape.ModelShape;
-import com.haz00.g3dmodelshape.NodeShape;
+import com.haz00.g3dmodelshape.MeshShape;
 
 public class AnimationShapekeysDemo extends BaseDemo {
 
     private ModelInstance inst;
     private AnimationController animCtl;
     private Node armatureNode;
-    private NodeShape shape;
+    private MeshShape shape;
 
     @Override
     public void create() {
@@ -32,10 +32,8 @@ public class AnimationShapekeysDemo extends BaseDemo {
 
         ModelShape modelShape = assets.get("animation and shapekeys.shapes", ModelShape.class);
 
-        Node node37 = inst.getNode("arrow.037");
-        shape = modelShape.getShape(node37.id);
-        shape.setMesh(node37);
-        shape.setBasis("Basis");
+        shape = modelShape.getShape("anim+shapekeys mesh");
+        shape.setMesh(inst.getNode("anim+shapekeys"));
     }
 
     @Override

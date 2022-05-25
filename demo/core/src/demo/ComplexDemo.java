@@ -7,14 +7,14 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.haz00.g3dmodelshape.ModelShape;
-import com.haz00.g3dmodelshape.NodeShape;
+import com.haz00.g3dmodelshape.MeshShape;
 
 public class ComplexDemo extends BaseDemo {
 
     private ModelInstance inst;
     private AnimationController animCtl;
     private Node armatureNode;
-    private NodeShape headShape, bodyShape;
+    private MeshShape headShape, bodyShape;
 
     @Override
     public void create() {
@@ -34,15 +34,11 @@ public class ComplexDemo extends BaseDemo {
 
         ModelShape modelShape = assets.get("complex.shapes", ModelShape.class);
 
-        Node head = inst.getNode("Head");
-        headShape = modelShape.getShape(head.id);
-        headShape.setMesh(head);
-        headShape.setBasis("Basis");
+        headShape = modelShape.getShape("head mesh");
+        headShape.setMesh(inst.getNode("head"));
 
-        Node body = inst.getNode("Body");
-        bodyShape = modelShape.getShape(body.id);
-        bodyShape.setMesh(body);
-        bodyShape.setBasis("Basis");
+        bodyShape = modelShape.getShape("body mesh");
+        bodyShape.setMesh(inst.getNode("body"));
     }
 
     @Override

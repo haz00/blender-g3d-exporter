@@ -1,7 +1,7 @@
 {
   "shapes": [
     {
-      "node": "Head",
+      "id": "head mesh",
       "keys": [
         {
           "name": "Basis",
@@ -294,7 +294,7 @@
       ]
     },
     {
-      "node": "Body",
+      "id": "body mesh",
       "keys": [
         {
           "name": "Basis",

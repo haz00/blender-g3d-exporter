@@ -7,17 +7,18 @@ from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
 from bpy_extras.node_shader_utils import ShaderImageTextureWrapper
 from mathutils import Matrix, Quaternion, Vector
 
+
 class GShape(object):
     """represents blender 'Shape Keys' panel"""
 
-    def __init__(self, node: str, source: bpy.types.Key):
-        self.node: str = node
+    def __init__(self, id: str, source: bpy.types.Key):
+        self.id: str = id
         self.keys: list[GShapeKey] = []
         self.source: bpy.types.Key = source
 
     def to_dict(self) -> dict[str, any]:
         root = dict()
-        root['node'] = self.node
+        root['id'] = self.id
         root['keys'] = [key.to_dict() for key in self.keys]
         return root
 
@@ -62,15 +63,21 @@ class GVertexAttribute(object):
 
 class GMesh(object):
     """
-    mesh is unique for attributes flags and for object with shapekeys, all other blender meshes will be merged into this
+    mesh is unique for attributes flags and for object with shapekeys, all other blender meshes will be merged into single mesh
     """
 
-    def __init__(self, attributes: list[GVertexAttribute], open: bool):
+    def __init__(self, attributes: list[GVertexAttribute], id: str = None):
         self.attributes: list[GVertexAttribute] = attributes
         self.vertices: list[list[float]] = []
         self.vertex_index: dict[int, int] = {}  # vertex hash -> vertex index
         self.parts: list[GMeshPart] = []
-        self.open: bool = open
+        self.id: bool = id
+
+    def get_mesh_part(self, name: str):
+        for p in self.parts:
+            if (p.id == name):
+                return p
+        return None
 
     def to_dict(self) -> dict[str, any]:
         root = dict()
@@ -191,7 +198,7 @@ class GNodePart(object):
         self.meshpartid: str = meshpartid
         self.materialid: str = materialid
         self.bones: list[GBoneMatrix] = []
-        self.uvMapping = [[]]
+        self.uvMapping = [[]]  # TODO what is this for???
 
     def get_bone(self, name: str) -> GBoneMatrix:
         for b in self.bones:
@@ -235,7 +242,7 @@ class GNode(object):
 
         self.scale: Vector = s
         self.translation: Vector = t
-        self.rotation: Quaternion = r 
+        self.rotation: Quaternion = r
 
     def to_dict(self) -> dict[str, any]:
         root = dict()
@@ -300,6 +307,12 @@ class G3D(object):
     def add_mesh(self, mesh: GMesh):
         self.meshes.append(mesh)
         print(f'add mesh: {len(self.meshes)}')
+
+    def get_mesh(self, attr: list[GVertexAttribute], id: str = None) -> GMesh:
+        for m in self.meshes:
+            if (m.id == id and m.attributes == attr):
+                return m
+        return None
 
     def get_material(self, id: str) -> GMaterial:
         for e in self.materials:

@@ -1,7 +1,7 @@
 {
   "shapes": [
     {
-      "node": "arrow.037",
+      "id": "anim+shapekeys mesh",
       "keys": [
         {
           "name": "Basis",
