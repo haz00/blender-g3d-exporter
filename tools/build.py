@@ -1,4 +1,3 @@
-from fileinput import filename
 import hashlib
 import sys
 import os
@@ -10,7 +9,7 @@ addon_name = "blender_g3d_exporter"
 
 source_home = Path("..")
 
-artifacts_home = Path("out")
+build_path = Path("build")
 
 source_files = [
     "generator.py",
@@ -25,8 +24,8 @@ source_files = [
 appdata_path = Path(os.getenv("APPDATA"))
 
 blender_addon_paths = [
-    appdata_path / "Blender Foundation" / "Blender" / "2.83" / "scripts" / "addons",
-    appdata_path / "Blender Foundation" / "Blender" / "2.93" / "scripts" / "addons",
+    appdata_path / "Blender Foundation" / "Blender" / "2.83" / "scripts" / "addons", # lts
+    appdata_path / "Blender Foundation" / "Blender" / "2.93" / "scripts" / "addons", # lts
     appdata_path / "Blender Foundation" / "Blender" / "3.0" / "scripts" / "addons",
     appdata_path / "Blender Foundation" / "Blender" / "3.1" / "scripts" / "addons",
 ]
@@ -47,9 +46,9 @@ def install():
 
 
 def zip():
-    artifacts_home.mkdir(exist_ok=True)
+    build_path.mkdir(exist_ok=True)
 
-    zip_dst = (artifacts_home / addon_name).with_suffix('.zip')
+    zip_dst = (build_path / addon_name).with_suffix('.zip')
 
     with ZipFile(zip_dst, "w") as zf:
 
@@ -77,7 +76,7 @@ def clean():
             addon_home.rmdir()
 
 
-def sign(src, dst):
+def sign(src: Path, dst: Path):
     md5 = hashlib.md5()
     sha1 = hashlib.sha1()
 
@@ -90,7 +89,7 @@ def sign(src, dst):
             sha1.update(data)
 
     with open(dst, 'w') as f:
-        f.write(str(src))
+        f.write(str(src.name))
         f.write('\nMD5: ' + md5.hexdigest())
         f.write('\nSHA1: ' + sha1.hexdigest())
 

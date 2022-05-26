@@ -1,11 +1,11 @@
 # <pep8 compliant>
 
 bl_info = {
-    "name": "G3D Exporter",
-    "description": "Export scene to libgdx g3d compatible format",
+    "name": "LibGDX G3D Exporter",
+    "description": "Export scene to LibGDX compatible format",
     "author": "haz00",
     "version": (0, 2),
-    "blender": (3, 0, 0),
+    "blender": (2, 93, 0),
     "location": "File > Export",
     "category": "Import-Export",
     'support': 'COMMUNITY',
