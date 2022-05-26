@@ -149,7 +149,7 @@ class G3djExportOperator(Operator, ExportHelper):
         gen.fps = self.fps
         gen.primitive_type = self.primitive_type
 
-        objects = bpy.context.selected_objects if (self.selected_only) else bpy.data.objects
+        objects = bpy.context.selected_objects if (self.selected_only) else list(bpy.data.objects)
 
         do_export(pathlib.Path(self.filepath), gen, objects)
 
