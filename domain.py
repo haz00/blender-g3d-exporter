@@ -19,7 +19,7 @@ class GShape(object):
     def to_dict(self) -> dict[str, any]:
         root = dict()
         root['id'] = self.id
-        root['keys'] = [key.to_dict() for key in self.keys]
+        root['keys'] = self.keys
         return root
 
 
@@ -33,7 +33,7 @@ class GShapeKey(object):
 
     def to_dict(self) -> dict[str, any]:
         root = dict()
-        root['name'] = self.name  # TODO rename to keyasd
+        root['name'] = self.name
         root['positions'] = flatten(self.positions)
         return root
 
@@ -55,7 +55,7 @@ class GMeshPart(object):
 class GVertexAttribute(object):
     def __init__(self, name: str, length: int):
         self.name: str = name
-        self.length: str = length
+        self.length: int = length
 
     def __eq__(self, o: object) -> bool:
         return isinstance(o, type(self)) and o.name == self.name and o.length == self.length
@@ -79,11 +79,14 @@ class GMesh(object):
                 return p
         return None
 
+    def vertex_size(self):
+        return sum(attr.length for attr in self.attributes)
+
     def to_dict(self) -> dict[str, any]:
         root = dict()
-        root['attributes'] = [a.name for a in self.attributes]
+        root['attributes'] = self.attributes
         root['vertices'] = flatten(self.vertices)
-        root['parts'] = [p.to_dict() for p in self.parts]
+        root['parts'] = self.parts
         return root
 
 
@@ -156,21 +159,21 @@ class GMaterial(object):
     def to_dict(self) -> dict[str, any]:
         root = dict()
         root['id'] = self.id
-        if(self.diffuse):
+        if(self.diffuse != None):
             root['diffuse'] = self.diffuse
-        if(self.ambient):
+        if(self.ambient != None):
             root['ambient'] = self.ambient
-        if(self.emissive):
+        if(self.emissive != None):
             root['emissive'] = self.emissive
-        if(self.specular):
+        if(self.specular != None):
             root['specular'] = self.specular
-        if(self.opacity):
+        if(self.opacity != None):
             root['opacity'] = self.opacity
-        if(self.shininess):
+        if(self.shininess != None):
             root['shininess'] = self.shininess
         if(self.reflection):
             root['reflection'] = self.reflection
-        root['textures'] = [t.to_dict() for t in self.textures]
+        root['textures'] = self.textures
         return root
 
 
@@ -211,7 +214,7 @@ class GNodePart(object):
         root['meshpartid'] = self.meshpartid
         root['materialid'] = self.materialid
         if (len(self.bones) > 0):
-            root['bones'] = [bone.to_dict() for bone in self.bones]
+            root['bones'] = self.bones
         root['uvMapping'] = self.uvMapping
         return root
 
@@ -221,17 +224,13 @@ class GNode(object):
 
     def __init__(self, id: str, source: bpy.types.Object):
         """
-        source - original blender object, can be null if node is armature bone
+        source - original blender object, can be None if node is armature bone
         """
         self.id = id
         self.parts: list[GNodePart] = []
         self.children: list[GNode] = []
         self.source: bpy.types.Object = source
         self.parent: GNode = None
-
-        self.rotation: Quaternion = Quaternion()
-        self.translation: Vector = Vector()
-        self.scale: Vector = Vector((1, 1, 1))
 
         mat: Matrix = source.matrix_world if (source) else Matrix.Identity(4)
 
@@ -250,8 +249,8 @@ class GNode(object):
         root['rotation'] = conv_quat(self.rotation)
         root['scale'] = conv_vec(self.scale)
         root['translation'] = conv_vec(self.translation)
-        root['parts'] = [part.to_dict() for part in self.parts]
-        root['children'] = [node.to_dict() for node in self.children]
+        root['parts'] = self.parts
+        root['children'] = self.children
         return root
 
 
@@ -278,7 +277,7 @@ class GBoneAnimation(object):
     def to_dict(self) -> dict[str, any]:
         root = dict()
         root['boneId'] = self.bone_id
-        root['keyframes'] = [k.to_dict() for k in self.keyframes]
+        root['keyframes'] = self.keyframes
         return root
 
 
@@ -290,14 +289,14 @@ class GAnimation(object):
     def to_dict(self) -> dict[str, any]:
         root = dict()
         root['id'] = self.id
-        root['bones'] = [b.to_dict() for b in self.bones]
+        root['bones'] = self.bones
         return root
 
 
 class G3D(object):
     def __init__(self) -> None:
         self.version = [0, 1]
-        self.id = ''
+        self.id: str = ""
         self.meshes: list[GMesh] = []
         self.materials: list[GMaterial] = []
         self.nodes: list[GNode] = []
@@ -324,8 +323,9 @@ class G3D(object):
         root = dict()
         root['version'] = self.version
         root['id'] = self.id
-        root['meshes'] = [mesh.to_dict() for mesh in self.meshes]
-        root['materials'] = [mat.to_dict() for mat in self.materials]
-        root['nodes'] = [node.to_dict() for node in self.nodes]
-        root['animations'] = [anim.to_dict() for anim in self.animations]
+        root['meshes'] = self.meshes
+        root['materials'] = self.materials
+        root['nodes'] = self.nodes
+        root['animations'] = self.animations
+        # shapekeys encodes separetly
         return root

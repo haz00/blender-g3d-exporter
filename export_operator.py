@@ -159,13 +159,10 @@ class G3djExportOperator(Operator, ExportHelper):
 def do_export(filepath: pathlib.Path, gen: G3dGenerator, objects: list[bpy.types.Object]):
     g3d = gen.generate(objects)
 
-    data = json.dumps(g3d.to_dict(), indent=2, cls=G3DJsonEncoder, float_round=6)
-    utils.write(filepath, data)
+    utils.write(filepath, json.dumps(g3d, cls=G3DJsonEncoder))
 
     if (gen.use_shapekeys):
-        root = dict()
-        root['shapes'] = [shape.to_dict() for shape in g3d.shapes]
-        data = json.dumps(root, indent=2, cls=G3DJsonEncoder, float_round=6)
+        data = json.dumps({"shapes": g3d.shapes}, cls=G3DJsonEncoder)
         utils.write(filepath.with_suffix(".shapes"), data)
 
 
