@@ -69,11 +69,7 @@ def clean():
         print(f"clean {addon_home}")
 
         if (addon_home.exists()):
-            for src in source_files:
-                dst = addon_home / src
-                os.remove(dst)
-                print(f"remove {dst}")
-            addon_home.rmdir()
+            shutil.rmtree(addon_home)
 
 
 def sign(src: Path, dst: Path):
