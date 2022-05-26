@@ -12,8 +12,7 @@ The demo folder contains LibGDX project with examples.
 - Vertex attributes customization
 - Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
-##### Worth noting
-LibGDX default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
+Note that LibGDX default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
 
 # Usage
 ### Installation
@@ -38,7 +37,6 @@ https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
 - Multiple uv maps
 - Optimize animation keyframes
 - g3db
-- Improve g3dj encoder formatter 
 
 # License
 GNU GPLv3 [LICENSE](https://github.com/haz00/blender-g3d-exporter/blob/master/LICENSE)
