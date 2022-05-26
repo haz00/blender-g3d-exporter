@@ -6,7 +6,7 @@ Export Blender scene to native LibGDX model format.
 The demo folder contains LibGDX project with examples.
 
 ## Features
-- Blender 2.8, 3.0
+- Blender 2.83 LTS, 2.93 LTS, 3.0, 3.1
 - Y-up
 - Bake bone animations
 - Vertex attributes customization

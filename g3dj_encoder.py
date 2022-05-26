@@ -2,7 +2,7 @@
 
 import json
 from json.encoder import encode_basestring_ascii, INFINITY
-from typing import Any
+from typing import Any, Tuple, Union, List
 
 from domain import *
 
@@ -22,7 +22,7 @@ class G3DJsonEncoder(json.JSONEncoder):
 
     def _interncode_object(self, obj: object, lvl: int):
 
-        items: dict[str, object] = obj
+        items: Dict[str, object] = obj
 
         if (not isinstance(obj, dict)):
             items = obj.to_dict()
@@ -67,7 +67,7 @@ class G3DJsonEncoder(json.JSONEncoder):
 
         yield _indentln(lvl) + '}'
 
-    def _interncode_list(self, items: list[Any], lvl: int, series_break: int = None):
+    def _interncode_list(self, items: List[Any], lvl: int, series_break: int = None):
         content_lvl = lvl + 1
 
         yield '[ '

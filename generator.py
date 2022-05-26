@@ -2,7 +2,7 @@
 
 import bmesh
 import bpy
-import typing
+from typing import Any, Tuple, Union, List
 from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
 from mathutils import Euler, Matrix, Quaternion, Vector
 
@@ -24,7 +24,7 @@ class GMeshGeneratorOptions(object):
         self.armature: bpy.types.Object = None
         self.max_blendweights: int = 0
         self.shape: GShape = None
-        self.attributes: list[GVertexAttribute] = []
+        self.attributes: List[GVertexAttribute] = []
 
 
 class GVertexBlendweightData(object):
@@ -52,7 +52,7 @@ class G3dGenerator(object):
         self.apply_modifiers = True
         self.fps = bpy.context.scene.render.fps
         self.primitive_type = 'TRIANGLES'
-        self.flat_nodes: dict[str, GNode] = dict()
+        self.flat_nodes: Dict[str, GNode] = dict()
 
     def gen_node_part(self, node: GNode, mesh: GMesh, opt: GMeshGeneratorOptions, mat: GMaterial):
         mesh_part_id = f'{opt.original.data.name}_part{mat.index}'
@@ -69,16 +69,16 @@ class G3dGenerator(object):
             self.gen_vertices(mesh, opt, mesh_part, node_part, mat.index)
 
 
-    def normalize_blendweights(self, blendweights: list[GVertexBlendweightData]):
+    def normalize_blendweights(self, blendweights: List[GVertexBlendweightData]):
         total = sum(b.weight for b in blendweights)
         
         if (total > 0):
             for b in blendweights:
                 b.weight /= total
 
-    def gen_blendweights(self, node_part: GNodePart, vert: bpy.types.MeshVertex, opt: GMeshGeneratorOptions) -> list[float]:
+    def gen_blendweights(self, node_part: GNodePart, vert: bpy.types.MeshVertex, opt: GMeshGeneratorOptions) -> List[float]:
 
-        blendweights: list[GVertexBlendweightData] = []
+        blendweights: List[GVertexBlendweightData] = []
 
         # search bone weight by each group assigned to vertex
         for vgroup in vert.groups:
@@ -125,7 +125,7 @@ class G3dGenerator(object):
                 vert: bpy.types.MeshVertex = opt.final_mesh.vertices[vert_index]
                 loop: bpy.types.MeshLoop = opt.final_mesh.loops[loop_index]
 
-                vert_data: list[float] = []
+                vert_data: List[float] = []
 
                 vert_data.extend(vert.co)
 
@@ -352,10 +352,10 @@ class G3dGenerator(object):
         #    x = ['Bone'].scale
         #    ...
 
-        pos_curves: list[bpy.types.FCurve] = []
-        scale_curves: list[bpy.types.FCurve] = []
-        quat_curves: list[bpy.types.FCurve] = []
-        euler_curves: list[bpy.types.FCurve] = []
+        pos_curves: List[bpy.types.FCurve] = []
+        scale_curves: List[bpy.types.FCurve] = []
+        quat_curves: List[bpy.types.FCurve] = []
+        euler_curves: List[bpy.types.FCurve] = []
 
         # we need to bake curves with one length
         # if curve is not exists the default values will be used
@@ -384,7 +384,7 @@ class G3dGenerator(object):
                         end_frame = int(max(end_frame, curve.range()[1]))
                 break
 
-        def bake(frame: int, curve_axis: list[bpy.types.FCurve], into_axis: typing.Union[Vector, Euler, Quaternion]):
+        def bake(frame: int, curve_axis: List[bpy.types.FCurve], into_axis: Union[Vector, Euler, Quaternion]):
             for i in range(len(curve_axis)):
                 into_axis[i] = curve_axis[i].evaluate(frame)
 
@@ -435,7 +435,7 @@ class G3dGenerator(object):
         del bm
 
 
-    def evaluate(self, obj: bpy.types.Object, apply_modifiers: bool) -> typing.Tuple[bpy.types.Object, bpy.types.Mesh]:
+    def evaluate(self, obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Object, bpy.types.Mesh]:
         """returns temporal trinaluated mesh with applied modifiers"""
         print(f"evaluate {obj.name}, apply modifiers {apply_modifiers}")
 
@@ -449,7 +449,7 @@ class G3dGenerator(object):
         self.tringalute(mesh)
         return (obj, mesh)
 
-    def generate(self, objects: list[bpy.types.Object]) -> G3D:
+    def generate(self, objects: List[bpy.types.Object]) -> G3D:
         print(f'generate: objects count: {len(objects)}')
         
         g3d = G3D()

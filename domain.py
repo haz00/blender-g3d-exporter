@@ -1,5 +1,6 @@
 # <pep8 compliant>
 
+from typing import Any, Dict, List
 from utils import conv_quat, conv_vec, flatten, unwrapv
 import bpy
 import os
@@ -13,10 +14,10 @@ class GShape(object):
 
     def __init__(self, id: str, source: bpy.types.Key):
         self.id: str = id
-        self.keys: list[GShapeKey] = []
+        self.keys: List[GShapeKey] = []
         self.source: bpy.types.Key = source
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['id'] = self.id
         root['keys'] = self.keys
@@ -29,9 +30,9 @@ class GShapeKey(object):
     def __init__(self, name: str, source):
         self.name = name
         self.source = source
-        self.positions: list[list[float]] = []
+        self.positions: List[List[float]] = []
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['name'] = self.name
         root['positions'] = flatten(self.positions)
@@ -42,9 +43,9 @@ class GMeshPart(object):
     def __init__(self, id: str, type: str):
         self.id: str = id
         self.type: str = type
-        self.indices: list[int] = []
+        self.indices: List[int] = []
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         result = dict()
         result['id'] = self.id
         result['type'] = self.type
@@ -66,11 +67,11 @@ class GMesh(object):
     mesh is unique for attributes flags and for object with shapekeys, all other blender meshes will be merged into single mesh
     """
 
-    def __init__(self, attributes: list[GVertexAttribute], id: str = None):
-        self.attributes: list[GVertexAttribute] = attributes
-        self.vertices: list[list[float]] = []
-        self.vertex_index: dict[int, int] = {}  # vertex hash -> vertex index
-        self.parts: list[GMeshPart] = []
+    def __init__(self, attributes: List[GVertexAttribute], id: str = None):
+        self.attributes: List[GVertexAttribute] = attributes
+        self.vertices: List[List[float]] = []
+        self.vertex_index: Dict[int, int] = {}  # vertex hash -> vertex index
+        self.parts: List[GMeshPart] = []
         self.id: bool = id
 
     def get_mesh_part(self, name: str):
@@ -82,7 +83,7 @@ class GMesh(object):
     def vertex_size(self):
         return sum(attr.length for attr in self.attributes)
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['attributes'] = self.attributes
         root['vertices'] = flatten(self.vertices)
@@ -99,7 +100,7 @@ class GTexture(object):
     def __str__(self) -> str:
         return f"GTexture({self.id}, {self.type}, {self.filename})"
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['id'] = self.id
         root['filename'] = self.filename
@@ -113,14 +114,14 @@ class GMaterial(object):
     def __init__(self, id: str, index: int):
         self.id: str = id
         self.index = index
-        self.diffuse: list[float] = None
-        self.ambient: list[float] = None
-        self.emissive: list[float] = None
-        self.specular: list[float] = None
-        self.reflection: list[float] = None
+        self.diffuse: List[float] = None
+        self.ambient: List[float] = None
+        self.emissive: List[float] = None
+        self.specular: List[float] = None
+        self.reflection: List[float] = None
         self.opacity: float = None
         self.shininess: float = None
-        self.textures: list[GTexture] = []
+        self.textures: List[GTexture] = []
 
     def setup_principled(self, bsdf: PrincipledBSDFWrapper):
         if (not self.setup_texture('TRANSPARENCY', bsdf.alpha_texture)):
@@ -156,7 +157,7 @@ class GMaterial(object):
             return True
         return False
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['id'] = self.id
         if(self.diffuse != None):
@@ -185,7 +186,7 @@ class GBoneMatrix(object):
         self.matrix: Matrix = matrix
         self.index: int = index
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['node'] = self.node
         root['translation'] = conv_vec(self.matrix.to_translation(), 0.0)
@@ -200,7 +201,7 @@ class GNodePart(object):
     def __init__(self, materialid: str, meshpartid: str):
         self.meshpartid: str = meshpartid
         self.materialid: str = materialid
-        self.bones: list[GBoneMatrix] = []
+        self.bones: List[GBoneMatrix] = []
         self.uvMapping = [[]]  # TODO what is this for???
 
     def get_bone(self, name: str) -> GBoneMatrix:
@@ -209,7 +210,7 @@ class GNodePart(object):
                 return b
         return None
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['meshpartid'] = self.meshpartid
         root['materialid'] = self.materialid
@@ -227,8 +228,8 @@ class GNode(object):
         source - original blender object, can be None if node is armature bone
         """
         self.id = id
-        self.parts: list[GNodePart] = []
-        self.children: list[GNode] = []
+        self.parts: List[GNodePart] = []
+        self.children: List[GNode] = []
         self.source: bpy.types.Object = source
         self.parent: GNode = None
 
@@ -243,7 +244,7 @@ class GNode(object):
         self.translation: Vector = t
         self.rotation: Quaternion = r
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['id'] = self.id
         root['rotation'] = conv_quat(self.rotation)
@@ -260,7 +261,7 @@ class GBoneKeyframe(object):
         self.keytime: float = time
         self.pose: Matrix = pose
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['keytime'] = self.keytime
         root['rotation'] = conv_quat(self.pose.to_quaternion())
@@ -272,9 +273,9 @@ class GBoneKeyframe(object):
 class GBoneAnimation(object):
     def __init__(self, bone_id: str):
         self.bone_id: str = bone_id
-        self.keyframes: list[GBoneKeyframe] = []
+        self.keyframes: List[GBoneKeyframe] = []
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['boneId'] = self.bone_id
         root['keyframes'] = self.keyframes
@@ -284,9 +285,9 @@ class GBoneAnimation(object):
 class GAnimation(object):
     def __init__(self, id: str):
         self.id: str = id
-        self.bones: list[GBoneAnimation] = []
+        self.bones: List[GBoneAnimation] = []
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['id'] = self.id
         root['bones'] = self.bones
@@ -297,17 +298,17 @@ class G3D(object):
     def __init__(self) -> None:
         self.version = [0, 1]
         self.id: str = ""
-        self.meshes: list[GMesh] = []
-        self.materials: list[GMaterial] = []
-        self.nodes: list[GNode] = []
-        self.animations: list[GAnimation] = []
-        self.shapes: list[GShape] = []
+        self.meshes: List[GMesh] = []
+        self.materials: List[GMaterial] = []
+        self.nodes: List[GNode] = []
+        self.animations: List[GAnimation] = []
+        self.shapes: List[GShape] = []
 
     def add_mesh(self, mesh: GMesh):
         self.meshes.append(mesh)
         print(f'add mesh: {len(self.meshes)}')
 
-    def get_mesh(self, attr: list[GVertexAttribute], id: str = None) -> GMesh:
+    def get_mesh(self, attr: List[GVertexAttribute], id: str = None) -> GMesh:
         for m in self.meshes:
             if (m.id == id and m.attributes == attr):
                 return m
@@ -319,7 +320,7 @@ class G3D(object):
                 return e
         return None
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['version'] = self.version
         root['id'] = self.id

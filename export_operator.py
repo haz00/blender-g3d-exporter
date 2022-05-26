@@ -1,6 +1,7 @@
 # <pep8 compliant>
 
 import pathlib
+from typing import List
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import BoolProperty, IntProperty, EnumProperty
@@ -13,7 +14,7 @@ import json
 
 class G3djExportOperator(Operator, ExportHelper):
     bl_idname = "g3dj_export_operator.export"
-    bl_label = "Libgdx (.g3dj)"
+    bl_label = "LibGDX (.g3dj)"
 
     filename_ext = ".g3dj"
 
@@ -156,7 +157,7 @@ class G3djExportOperator(Operator, ExportHelper):
         return {'FINISHED'}
 
 
-def do_export(filepath: pathlib.Path, gen: G3dGenerator, objects: list[bpy.types.Object]):
+def do_export(filepath: pathlib.Path, gen: G3dGenerator, objects: List[bpy.types.Object]):
     g3d = gen.generate(objects)
 
     utils.write(filepath, json.dumps(g3d, cls=G3DJsonEncoder))
