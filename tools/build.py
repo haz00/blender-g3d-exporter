@@ -51,16 +51,14 @@ def zip():
     zip_dst = (build_path / addon_name).with_suffix('.zip')
 
     with ZipFile(zip_dst, "w") as zf:
-
         for src in source_files:
             arcname = f"{addon_name}/{src}"
             src = str(source_home / src)
             zf.write(src, arcname)
             print(f"zip {src} to {arcname}")
-            
         print(f"zip done {zf.filename}")
-
-        sign(zip_dst, zip_dst.parent / (zip_dst.name + '.sum'))
+            
+    sign(zip_dst)
 
 
 def clean():
@@ -72,22 +70,20 @@ def clean():
             shutil.rmtree(addon_home)
 
 
-def sign(src: Path, dst: Path):
-    md5 = hashlib.md5()
-    sha1 = hashlib.sha1()
-
+def sign(src: Path):
     with open(src, 'rb') as f:
-        while True:
-            data = f.read(65536)
-            if not data:
-                break
-            md5.update(data)
-            sha1.update(data)
+        buf = f.read()
+        md5 = hashlib.md5(buf).hexdigest()
+        sha1 = hashlib.sha1(buf).hexdigest()
 
-    with open(dst, 'w') as f:
-        f.write(str(src.name))
-        f.write('\nMD5: ' + md5.hexdigest())
-        f.write('\nSHA1: ' + sha1.hexdigest())
+        dst = src.parent / (src.name + '.hashsum')
+        print(f"sign {src} to {dst}")
+
+        with open(dst, 'w') as f:
+            f.write(str(src.name))
+            f.write('\nMD5:\t' + md5)
+            f.write('\nSHA1:\t' + sha1)
+
 
 
 def main():
