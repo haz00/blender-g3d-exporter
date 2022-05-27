@@ -35,7 +35,6 @@ https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
 
 # TODO
 - Multiple uv maps
-- Optimize animation keyframes
 - g3db
 
 # License
