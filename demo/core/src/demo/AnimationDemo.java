@@ -23,8 +23,8 @@ public class AnimationDemo extends BaseDemo {
         inst = new ModelInstance(model);
 
         animCtl = new AnimationController(inst);
-        animCtl.setAnimation("Armature.004|Armature.004Action", -1);
-        armatureNode = inst.getNode("Armature.004");
+        animCtl.setAnimation("ArmatureAnim|AnimAction", -1);
+        armatureNode = inst.getNode("ArmatureAnim");
     }
 
     @Override

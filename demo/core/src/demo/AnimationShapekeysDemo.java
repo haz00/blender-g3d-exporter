@@ -27,8 +27,8 @@ public class AnimationShapekeysDemo extends BaseDemo {
         inst = new ModelInstance(model);
 
         animCtl = new AnimationController(inst);
-        animCtl.setAnimation("Armature.001|Armature.004Action", -1);
-        armatureNode = inst.getNode("Armature.001");
+        animCtl.setAnimation("ArmatureAnim.001|AnimAction", -1);
+        armatureNode = inst.getNode("ArmatureAnim.001");
 
         ModelShape modelShape = assets.get("animation and shapekeys.shapes", ModelShape.class);
 
