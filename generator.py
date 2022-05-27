@@ -251,12 +251,7 @@ class G3dGenerator(object):
         print(f'generate mesh node: {obj.name}')
         
         node = self.gen_node(obj)
-        
         opt = self.prepare_mesh(obj, use_armature)
-
-        # for object with shapekeys we create immutable gmesh to keep vertex ordering for keys
-        # is_mesh_open = opt.shape == None
-
         gmesh = g3d.get_mesh(opt.attributes, obj.data.name)
 
         # create gmesh if not exists
@@ -346,10 +341,10 @@ class G3dGenerator(object):
     def bake_bone_animation(self, action: bpy.types.Action, b_bone: bpy.types.Bone) -> GBoneAnimation:
 
         # blender stores curves in arrays as:
-        #    x = ['Bone'].translation
-        #    y = ['Bone'].translation
-        #    z = ['Bone'].translation
-        #    x = ['Bone'].scale
+        #    x = ['Bone'].translation[0]
+        #    y = ['Bone'].translation[1]
+        #    z = ['Bone'].translation[2]
+        #    x = ['Bone'].scale[0]
         #    ...
 
         pos_curves: List[bpy.types.FCurve] = []

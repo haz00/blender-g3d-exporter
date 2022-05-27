@@ -17,10 +17,10 @@ float_format = "%9.6f"
 class G3DJsonEncoder(json.JSONEncoder):
 
     def iterencode(self, obj: object, _one_shot=False):
-        for chunk in self._interncode_object(obj, 0):
+        for chunk in self._interencode_object(obj, 0):
             yield chunk
 
-    def _interncode_object(self, obj: object, lvl: int):
+    def _interencode_object(self, obj: object, lvl: int):
 
         items: Dict[str, object] = obj
 
@@ -55,7 +55,7 @@ class G3DJsonEncoder(json.JSONEncoder):
                 elif (isinstance(obj, GShapeKey) and key == 'positions'):
                     series_break = 3
 
-                for chunk in self._interncode_list(value, content_lvl, series_break):
+                for chunk in self._interencode_list(value, content_lvl, series_break):
                     yield chunk
             else:
                 raise ValueError(
@@ -67,7 +67,7 @@ class G3DJsonEncoder(json.JSONEncoder):
 
         yield _indentln(lvl) + '}'
 
-    def _interncode_list(self, items: List[Any], lvl: int, series_break: int = None):
+    def _interencode_list(self, items: List[Any], lvl: int, series_break: int = None):
         content_lvl = lvl + 1
 
         yield '[ '
@@ -88,10 +88,10 @@ class G3DJsonEncoder(json.JSONEncoder):
             elif (isinstance(value, GVertexAttribute)):
                 yield _encoder(value.name)
             elif (isinstance(value, list)):
-                for chunk in self._interncode_list(value, content_lvl):
+                for chunk in self._interencode_list(value, content_lvl):
                     yield chunk
             else:
-                for chunk in self._interncode_object(value, content_lvl):
+                for chunk in self._interencode_object(value, content_lvl):
                     yield chunk
 
             if (i + 1 < len(items)):
