@@ -1,5 +1,3 @@
-# !!!WORK IN PROGRESS!!!
-
 # Overview
 Export Blender scene to native LibGDX model format.
 
@@ -32,11 +30,6 @@ https://docs.blender.org/api/current/info_quickstart.html
 https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules
 
 https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
-
-# TODO
-- Multiple uv maps
-- Optimize animation keyframes
-- g3db
 
 # License
 GNU GPLv3 [LICENSE](https://github.com/haz00/blender-g3d-exporter/blob/master/LICENSE)
