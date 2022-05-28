@@ -347,23 +347,17 @@ class G3dGenerator(object):
         Note that keyframe time from Graph Editor will be rounded to int.
         """
 
-        # blender stores curves in arrays like:
-        #    x = ['Action']['Bone'].location[0]
-        #    y = ['Action']['Bone'].location[1]
-        #    z = ['Action']['Bone'].location[2]
-        #    w = ['Action']['Bone'].quaternion[0]
-        #    x = ['Action']['Bone'].quaternion[1]
-        #    ...
-
         anim_bone = GBoneAnimation(b_bone.name)
 
         if (b_bone.name not in action.groups):
             return anim_bone
 
+        bone_action = BoneAction(b_bone, action)
+
         keyframes: Dict[int, bool] = dict()
 
-        # collect time of all keyframes and decide which should be baked
-        for curve in action.groups[b_bone.name].channels:
+        # collect the time of all keyframes and decide which should be baked
+        for curve in bone_action.curves():
             for keyframe in curve.keyframe_points:
                 frame = int(keyframe.co[0])
                 must_bake = keyframe.interpolation != 'LINEAR'
@@ -373,7 +367,6 @@ class G3dGenerator(object):
         timeline: List[int] = sorted(keyframes)
 
         for idx, frame in enumerate(timeline):
-            
             eval_count = 1
             
             # check if we should bake to the next keyframe   
@@ -381,43 +374,11 @@ class G3dGenerator(object):
                 eval_count = timeline[idx + 1] - frame
             
             for eval_idx in range(eval_count):
-                
-                eval_frame = frame + eval_idx
-
+                cur_frame = frame + eval_idx
                 # first keyframe is start of animation so it millis is 0
-                millis = (1.0 / self.fps) * 1000 * (eval_frame - timeline[0])
-                
-                loc = Vector()
-                scale = Vector((1, 1, 1))
-                quat = Quaternion()
-                euler = Euler()
-                
-                for curve in action.groups[b_bone.name].channels:
-                    
-                    # TODO respect existing but disabled curves?
-                    value = curve.evaluate(eval_frame)
-                    
-                    if curve.data_path.endswith('location'):
-                        loc[curve.array_index] = value
-                    elif curve.data_path.endswith('scale'):
-                        scale[curve.array_index] = value
-                    elif curve.data_path.endswith('rotation_quaternion'):
-                        quat[curve.array_index] = value
-                    elif curve.data_path.endswith('rotation_euler'):
-                        euler[curve.array_index] = value
+                millis = (1.0 / self.fps) * 1000 * (cur_frame - timeline[0])
 
-                if (b_bone.rotation_mode != 'QUATERNION'):
-                    quat = euler.to_quaternion()
-
-                trans = Matrix.LocRotScale(loc, quat, scale)
-                rest = b_bone.bone.matrix_local
-
-                if (b_bone.parent):
-                    # relative to parent
-                    rest = b_bone.parent.bone.matrix_local.inverted() @ b_bone.bone.matrix_local
-
-                pose: Matrix = rest @ trans
-
+                pose = bone_action.eval_pose(cur_frame)
                 key = GBoneKeyframe(millis, pose)
                 anim_bone.keyframes.append(key)
 
@@ -506,3 +467,51 @@ class G3dGenerator(object):
                 g3d.nodes.append(node)
         
         self.flat_nodes.clear()
+
+
+class BoneAction(object):
+    """Encapsulates valid action curves of bone"""
+    def __init__(self, b_bone: bpy.types.PoseBone, action: bpy.types.Action) -> None:
+        self.b_bone = b_bone
+        self.loc_curves: List[bpy.types.FCurve] = []
+        self.scale_curves: List[bpy.types.FCurve] = []
+        self.quat_curves: List[bpy.types.FCurve] = []
+        self.euler_curves: List[bpy.types.FCurve] = []
+
+        for curve in action.groups[b_bone.name].channels:
+            # TODO respect existing but disabled curves?
+            if curve.data_path.endswith('location'):
+                self.loc_curves.append(curve)
+            elif curve.data_path.endswith('scale'):
+                self.scale_curves.append(curve)
+            elif curve.data_path.endswith('rotation_quaternion'):
+                self.quat_curves.append(curve)
+            elif curve.data_path.endswith('rotation_euler'):
+                self.euler_curves.append(curve)            
+
+    def curves(self) -> List[bpy.types.FCurve]:
+        return flatten([self.loc_curves, self.scale_curves, self.quat_curves, self.euler_curves])
+
+    def eval_pose(self, frame: int) -> Matrix: 
+        
+        loc = self.eval_curves(frame, self.loc_curves, Vector())
+        scale = self.eval_curves(frame, self.scale_curves, Vector((1, 1, 1)))
+        quat = self.eval_curves(frame, self.quat_curves, Quaternion())
+        euler = self.eval_curves(frame, self.euler_curves, Euler())
+        
+        if (self.b_bone.rotation_mode != 'QUATERNION'):
+            quat = euler.to_quaternion()
+
+        trans = Matrix.LocRotScale(loc, quat, scale)
+        rest = self.b_bone.bone.matrix_local
+
+        if (self.b_bone.parent):
+            # relative to parent
+            rest = self.b_bone.parent.bone.matrix_local.inverted() @ rest
+
+        return rest @ trans
+
+    def eval_curves(self, frame: int, curves: List[bpy.types.FCurve], into: Union[Vector, Quaternion, Euler]) -> Union[Vector, Quaternion, Euler]:
+        for curve in curves: 
+            into[curve.array_index] = curve.evaluate(frame)
+        return into
