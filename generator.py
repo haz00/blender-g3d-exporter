@@ -414,6 +414,10 @@ class G3dGenerator(object):
 
         for obj in objects:
 
+            if (not obj.visible_get()):
+                print(f"skip not visible: {obj.name}")
+                continue
+
             obj.update_from_editmode()
 
             if (obj.type == 'ARMATURE'):
