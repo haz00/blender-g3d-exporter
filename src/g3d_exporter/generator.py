@@ -1,14 +1,15 @@
 # <pep8 compliant>
 
-import bmesh
 import bpy
-from typing import Any, Dict, Tuple, Union, List
-from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
+import bmesh
 from mathutils import Euler, Matrix, Quaternion, Vector
+from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
+from bpy_extras.node_shader_utils import ShaderImageTextureWrapper
 
-from domain import G3D, GAnimation, GBoneAnimation, GBoneKeyframe, GBoneMatrix, GMaterial, GMesh, GMeshPart, GNode, GNodePart, GShape, GShapeKey, GVertexAttribute
+from typing import Any, Dict, Tuple, Union, List
 
-from utils import conv_uv, flatten, hash_vert, pack_color
+from .model import *
+from .common import *
 
 
 class GMeshGeneratorOptions(object):
@@ -230,18 +231,18 @@ class G3dGenerator(object):
             for i in range(opt.max_blendweights):
                 opt.attributes.append(GVertexAttribute('BLENDWEIGHT' + str(i), 2))
 
-    def gen_material(self, g3d: G3D, index: int, mat: bpy.types.Material) -> GMaterial:
-        gmat = g3d.get_material(mat.name)
+    def gen_material(self, model: G3dModel, index: int, mat: bpy.types.Material) -> GMaterial:
+        gmat = model.get_material(mat.name)
 
         if gmat == None:
             gmat = GMaterial(mat.name, index)
-            gmat.setup_principled(PrincipledBSDFWrapper(mat.material, is_readonly=True))
-            g3d.materials.append(gmat)
+            self.setup_principled(gmat, PrincipledBSDFWrapper(mat.material, is_readonly=True))
+            model.materials.append(gmat)
             print(f'add material: {gmat.id}')
 
         return gmat
 
-    def gen_mesh_node(self, obj: bpy.types.Object, g3d: G3D, use_armature: bool):
+    def gen_mesh_node(self, obj: bpy.types.Object, model: G3dModel, use_armature: bool):
         print(f'generate mesh node: {obj.name}')
         
         if (len(obj.material_slots) == 0):
@@ -251,25 +252,25 @@ class G3dGenerator(object):
         self.prepare_mesh(opt)
         self.analyze_mesh(opt, use_armature)
         
-        gmesh = g3d.get_mesh(opt.attributes, obj.data.name)
+        gmesh = model.get_mesh(opt.attributes, obj.data.name)
 
         # create gmesh if not exists
         if (gmesh == None):
             if (opt.shape != None):
                 print(f"add shapekeys: {opt.shape.id}")
-                g3d.shapes.append(opt.shape)
+                model.shapes.append(opt.shape)
 
                 gmesh = GMesh(opt.attributes, obj.data.name)
             else:
                 gmesh = GMesh(opt.attributes, None)
 
-            g3d.add_mesh(gmesh)
+            model.add_mesh(gmesh)
 
         node = self.gen_node(obj)
 
         # node part per material
         for i, mat in enumerate(obj.material_slots):
-            gmat = self.gen_material(g3d, i, mat)
+            gmat = self.gen_material(model, i, mat)
             self.gen_node_part(node, gmesh, opt, gmat)
 
     def gen_node(self, obj: bpy.types.Object) -> GNode:
@@ -278,14 +279,14 @@ class G3dGenerator(object):
         print(f"add node: {node.id}")
         return node
 
-    def gen_armature_node(self, obj: bpy.types.Object, g3d: G3D):
+    def gen_armature_node(self, obj: bpy.types.Object, model: G3dModel):
         print(f'generate armature node: {obj.name}')
 
         node = self.gen_node(obj)
         self.gen_armature_tree(node)
 
         if (self.use_actions):
-            self.gen_armature_animations(node, g3d)
+            self.gen_armature_animations(node, model)
 
     def gen_armature_tree(self, node: GNode):
         """build tree from root bones"""
@@ -296,7 +297,7 @@ class G3dGenerator(object):
                 child = self.gen_armature_bones_recusvively(b_bone, self.add_bone_tip)
                 node.children.append(child)
 
-    def gen_armature_animations(self, node: GNode, g3d: G3D):
+    def gen_armature_animations(self, node: GNode, model: G3dModel):
         for action in bpy.data.actions:
             if action.users == 0:
                 continue
@@ -311,7 +312,7 @@ class G3dGenerator(object):
 
             if (len(anim.bones) > 0):
                 print(f"add animation: {anim.id}")
-                g3d.animations.append(anim)
+                model.animations.append(anim)
 
     def gen_armature_bones_recusvively(self, bone: bpy.types.Bone, add_tip: bool):
         node = GNode(bone.name, None)
@@ -408,10 +409,10 @@ class G3dGenerator(object):
         self.tringalute(mesh)
         return (obj, mesh)
 
-    def generate(self, objects: List[bpy.types.Object]) -> G3D:
+    def generate(self, objects: List[bpy.types.Object]) -> G3dModel:
         print(f'generate: objects count: {len(objects)}')
         
-        g3d = G3D()
+        model = G3dModel()
 
         for obj in objects:
 
@@ -423,30 +424,34 @@ class G3dGenerator(object):
 
             if (obj.type == 'ARMATURE'):
                 if (self.use_armature):
-                    self.gen_armature_node(obj, g3d)
+                    self.gen_armature_node(obj, model)
 
             elif (obj.type == 'MESH'):
                 # ensure the attached armature is also in export list - requires to blendweights
                 armature_selected = obj.find_armature() in objects if (self.use_armature) else False
 
-                self.gen_mesh_node(obj, g3d, armature_selected)
+                self.gen_mesh_node(obj, model, armature_selected)
 
             else:
                 print(f'not supported export type for {obj.name}: {obj.type}')
 
-        self.resolve_nodes_tree(g3d)
+        self.resolve_nodes_tree(model)
 
-        # rotate root nodes
         if (self.y_up):
-            y_up = Quaternion([-0.707107, 0.707107, 0.000000,  0.000000])
-            for root in g3d.nodes:
-                root.rotation = y_up @ root.rotation 
-                root.translation = y_up @ root.translation 
+            # rotate root nodes
+            self.conv_rotation(model.nodes, Quaternion([-0.707107, 0.707107, 0.000000,  0.000000]))
 
         print('generated')
-        return g3d
+        return model
     
-    def resolve_nodes_tree(self, g3d: G3D):
+
+    def conv_rotation(self, nodes: List[GNode], rot: Quaternion):
+        for root in nodes:
+            root.rotation = rot @ root.rotation 
+            root.translation = rot @ root.translation 
+
+
+    def resolve_nodes_tree(self, model: G3dModel):
         """assotiate parent-child node relations"""
 
         for k in self.flat_nodes:
@@ -469,10 +474,44 @@ class G3dGenerator(object):
         for k in self.flat_nodes:
             node = self.flat_nodes[k]
             if (node.parent == None):
-                g3d.nodes.append(node)
+                model.nodes.append(node)
         
         self.flat_nodes.clear()
 
+    def setup_principled(self, mat: GMaterial, bsdf: PrincipledBSDFWrapper):
+        if (not self.setup_texture(mat, 'TRANSPARENCY', bsdf.alpha_texture)):
+            mat.opacity = bsdf.alpha
+
+        if (not self.setup_texture(mat, 'DIFFUSE', bsdf.base_color_texture)):
+            mat.diffuse = unwrapv(bsdf.base_color)
+
+        if (not self.setup_texture(mat, 'EMISSIVE', bsdf.emission_color_texture)):
+            mat.emissive = unwrapv(bsdf.emission_color)
+
+        if (not self.setup_texture(mat, 'SHININESS', bsdf.roughness_texture)):
+            mat.shininess = 1.0 - bsdf.roughness
+
+        if (not self.setup_texture(mat, 'SPECULAR', bsdf.specular_texture)):
+            mat.specular = [bsdf.specular, bsdf.specular, bsdf.specular]
+
+        if (not self.setup_texture(mat, 'REFLECTION', bsdf.metallic_texture)):
+            mat.reflection = [bsdf.metallic, bsdf.metallic, bsdf.metallic]
+
+        self.setup_texture(mat, 'NORMAL', bsdf.normalmap_texture)
+
+        # TODO also look for nodes
+        if (not bpy.context.scene.world.use_nodes):
+            mat.ambient = unwrapv(bpy.context.scene.world.color)
+
+
+    def setup_texture(self, mat: GMaterial, type: str, wrapper: ShaderImageTextureWrapper) -> bool:
+        if (wrapper and wrapper.image):
+            filename = os.path.basename(wrapper.image.filepath_from_user())
+            tex = GTexture(wrapper.image.name, type, filename)
+            mat.textures.append(tex)
+            print(f"add texture {tex}")
+            return True
+        return False
 
 class BoneAction(object):
     """Encapsulates valid action curves of bone"""

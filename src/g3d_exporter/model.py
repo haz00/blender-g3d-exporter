@@ -1,12 +1,11 @@
 # <pep8 compliant>
 
-from typing import Any, Dict, List
-from utils import conv_quat, conv_vec, flatten, unwrapv
 import bpy
-import os
-from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
-from bpy_extras.node_shader_utils import ShaderImageTextureWrapper
 from mathutils import Matrix, Quaternion, Vector
+
+from typing import Any, Dict, List
+
+from .common import *
 
 
 class GShape(object):
@@ -122,40 +121,6 @@ class GMaterial(object):
         self.opacity: float = None
         self.shininess: float = None
         self.textures: List[GTexture] = []
-
-    def setup_principled(self, bsdf: PrincipledBSDFWrapper):
-        if (not self.setup_texture('TRANSPARENCY', bsdf.alpha_texture)):
-            self.opacity = bsdf.alpha
-
-        if (not self.setup_texture('DIFFUSE', bsdf.base_color_texture)):
-            self.diffuse = unwrapv(bsdf.base_color)
-
-        if (not self.setup_texture('EMISSIVE', bsdf.emission_color_texture)):
-            self.emissive = unwrapv(bsdf.emission_color)
-
-        if (not self.setup_texture('SHININESS', bsdf.roughness_texture)):
-            self.shininess = 1.0 - bsdf.roughness
-
-        if (not self.setup_texture('SPECULAR', bsdf.specular_texture)):
-            self.specular = [bsdf.specular, bsdf.specular, bsdf.specular]
-
-        if (not self.setup_texture('REFLECTION', bsdf.metallic_texture)):
-            self.reflection = [bsdf.metallic, bsdf.metallic, bsdf.metallic]
-
-        self.setup_texture('NORMAL', bsdf.normalmap_texture)
-
-        # TODO also look for nodes
-        if (not bpy.context.scene.world.use_nodes):
-            self.ambient = unwrapv(bpy.context.scene.world.color)
-
-    def setup_texture(self, type: str, wrapper: ShaderImageTextureWrapper) -> bool:
-        if (wrapper and wrapper.image):
-            filename = os.path.basename(wrapper.image.filepath_from_user())
-            tex = GTexture(wrapper.image.name, type, filename)
-            self.textures.append(tex)
-            print(f"add texture {tex}")
-            return True
-        return False
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
@@ -294,7 +259,7 @@ class GAnimation(object):
         return root
 
 
-class G3D(object):
+class G3dModel(object):
     def __init__(self) -> None:
         self.version = [0, 1]
         self.id: str = ""

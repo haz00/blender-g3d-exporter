@@ -4,7 +4,7 @@ import json
 from json.encoder import encode_basestring_ascii, INFINITY
 from typing import Any, Tuple, Union, List
 
-from domain import *
+from .model import *
 
 ln = '\n'
 spaces = ' ' * 2

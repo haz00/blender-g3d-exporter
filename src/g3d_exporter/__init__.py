@@ -15,40 +15,38 @@ bl_info = {
 
 if "bpy" in locals():
     import importlib
-    importlib.reload(utils)
-    importlib.reload(domain)
-    importlib.reload(g3dj_encoder)
+    importlib.reload(common)
     importlib.reload(g3db_encoder)
+    importlib.reload(g3dj_encoder)
     importlib.reload(generator)
+    importlib.reload(model)
     importlib.reload(export_operator)
 else:
     import bpy
-    import sys
-    import os
-
-    # add addon directory to classpath
-    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-
-    import utils
-    import domain
-    import g3dj_encoder
-    import g3db_encoder
-    import generator
-    import export_operator
-
+    from . import common
+    from . import g3db_encoder
+    from . import g3dj_encoder
+    from . import generator
+    from . import model
+    from . import export_operator
 
 classes = [
-    export_operator.G3dExportOperator
+    export_operator.G3djExportOperator,
+    export_operator.G3dbExportOperator,
 ]
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    export_operator.add_menu()
+    export_operator.register_menu()
 
 
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    export_operator.remove_menu()
+    export_operator.unregister_menu()
+
+
+if __name__ == "__main__":
+    register()

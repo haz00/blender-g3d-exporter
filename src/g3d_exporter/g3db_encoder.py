@@ -2,8 +2,8 @@
 
 from typing import Any, Tuple, Union, List
 
-from domain import *
-import simpleubjson
+from . import simpleubjson
+from .model import *
 
 
 def _default_mapper(obj):
@@ -15,5 +15,5 @@ def _default_mapper(obj):
         raise simpleubjson.exceptions.EncodeError(type(obj))
 
 
-def encode(g3d: G3D) -> Any:
+def encode(g3d: G3dModel) -> Any:
     return simpleubjson.encode(g3d, old_format_json=True, default=_default_mapper)

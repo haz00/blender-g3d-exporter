@@ -46,5 +46,6 @@ def conv_quat(v: Union[List[float], Quaternion]) -> List[float]:
 
 
 def pack_color(rgba: List[float]) -> float:
-    abgr_int = int(rgba[3] * 255) << 24 | int(rgba[2] * 255) << 16 | int(rgba[1] * 255) << 8 | int(rgba[0] * 255)
+    abgr_int = int(rgba[3] * 255) << 24 | int(rgba[2] *
+                                              255) << 16 | int(rgba[1] * 255) << 8 | int(rgba[0] * 255)
     return int_bits_to_float(abgr_int & 0xfeffffff)

@@ -8,7 +8,7 @@
 #
 
 import sys
-import simpleubjson
+# import simpleubjson
 from ..draft8 import Draft8Decoder
 from ..draft9 import Draft9Decoder
 from ..exceptions import EarlyEndOfStreamError

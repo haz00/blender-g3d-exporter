@@ -1,8 +1,6 @@
 # <pep8 compliant>
 
-import json
-
-from domain import *
+from ..model import *
 import g3dj_encoder
 import g3db_encoder
 import simpleubjson
@@ -12,16 +10,17 @@ tests available only within blender context,
 because they create blender structures such as Matrix, Vector etc.
 """
 
-def _build_g3d() -> G3D:
 
-    g3d = G3D()
+def _build_model() -> G3dModel:
+
+    model = G3dModel()
 
     mesh = GMesh([
         GVertexAttribute('POS', 3),
         GVertexAttribute('NORM', 3),
         GVertexAttribute('UV', 2)
     ])
-    g3d.meshes.append(mesh)
+    model.meshes.append(mesh)
 
     for i in range(2):
         part = GMeshPart(f"_part{i}", 'TRIANGLE')
@@ -36,7 +35,7 @@ def _build_g3d() -> G3D:
 
     for i in range(2):
         mat = GMaterial(f"mat{i}", i)
-        g3d.materials.append(mat)
+        model.materials.append(mat)
         mat.diffuse = [0.0, 0.0, 0.0]
         mat.ambient = mat.diffuse
         mat.emissive = mat.diffuse
@@ -51,7 +50,7 @@ def _build_g3d() -> G3D:
 
     for i in range(2):
         node = GNode(f"node{i}", None)
-        g3d.nodes.append(node)
+        model.nodes.append(node)
         for j in range(2):
             part = GNodePart('mat', 'mesh')
             node.parts.append(part)
@@ -73,7 +72,7 @@ def _build_g3d() -> G3D:
 
     for i in range(2):
         anim = GAnimation(f'anim{i}')
-        g3d.animations.append(anim)
+        model.animations.append(anim)
 
         for j in range(2):
             bone = GBoneAnimation('bone')
@@ -84,24 +83,24 @@ def _build_g3d() -> G3D:
             ]
             anim.bones.append(bone)
 
-    return g3d
+    return model
 
 
 def test_g3dj():
-    print(g3dj_encoder.encode(_build_g3d()))
+    print(g3dj_encoder.encode(_build_model()))
 
 
-def test_g3db():    
-    data = g3db_encoder.encode(_build_g3d())
+def test_g3db():
+    data = g3db_encoder.encode(_build_model())
     simpleubjson.pprint(data)
 
 
 def test_shapes():
-    g3d = G3D()
+    model = G3dModel()
 
     for i in range(2):
         shape = GShape(f'mesh{i}', None)
-        g3d.shapes.append(shape)
+        model.shapes.append(shape)
 
         for j in range(2):
             key = GShapeKey(f'key{j}', None)
@@ -112,4 +111,4 @@ def test_shapes():
             ]
             shape.keys.append(key)
 
-    print(g3dj_encoder.encode({"shapes": g3d.shapes}))
+    print(g3dj_encoder.encode({"shapes": model.shapes}))
