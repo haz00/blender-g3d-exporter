@@ -1,18 +1,18 @@
 # <pep8 compliant>
 
-import pathlib
-from typing import List
+from pathlib import Path
+from typing import Any, List
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import BoolProperty, IntProperty, EnumProperty
 from bpy.types import Operator
-from g3dj_encoder import G3DJsonEncoder
+from domain import G3D, GShape
+import g3dj_encoder
+import g3db_encoder
 from generator import G3dGenerator
-import utils
-import json
 
 
-class G3djExportOperator(Operator, ExportHelper):
+class G3dExportOperator(Operator, ExportHelper):
     bl_idname = "g3dj_export_operator.export"
     bl_label = "LibGDX (.g3dj)"
 
@@ -22,6 +22,12 @@ class G3djExportOperator(Operator, ExportHelper):
         name="Selected Only",
         description="",
         default=False,
+    )
+
+    binary: BoolProperty(
+        name="Binary",
+        description="Export to .g3db",
+        default=True,
     )
 
     y_up: BoolProperty(
@@ -56,7 +62,7 @@ class G3djExportOperator(Operator, ExportHelper):
             ('COLOR', 'COLOR', 'RGBA floats'),
             ('COLORPACKED', 'COLORPACKED', 'Pack RGBA floats into single int'))
     )
-    
+
     use_uv: BoolProperty(
         name="UV",
         description="",
@@ -150,25 +156,45 @@ class G3djExportOperator(Operator, ExportHelper):
         gen.fps = self.fps
         gen.primitive_type = self.primitive_type
 
-        objects = bpy.context.selected_objects if (self.selected_only) else list(bpy.data.objects)
+        if self.selected_only:
+            objects = bpy.context.selected_objects 
+        else:
+            objects = list(bpy.data.objects)
 
-        do_export(pathlib.Path(self.filepath), gen, objects)
+        g3d = gen.generate(objects)
+        out = Path(self.filepath)
+
+        export_g3d(out, g3d, self.binary)
+
+        if self.use_shapekeys:
+            export_shapekeys(out, g3d.shapes, self.binary)
 
         return {'FINISHED'}
 
 
-def do_export(filepath: pathlib.Path, gen: G3dGenerator, objects: List[bpy.types.Object]):
-    g3d = gen.generate(objects)
+def export_g3d(filepath: Path, g3d: G3D, binary=True):
+    if (binary):
+        data = g3db_encoder.encode(g3d)
+        _write(data, filepath.with_suffix('.g3db'), 'wb')
+    else:
+        data = g3dj_encoder.encode(g3d)
+        _write(data, filepath.with_suffix('.g3dj'), 'w')
 
-    utils.write(filepath, json.dumps(g3d, cls=G3DJsonEncoder))
 
-    if (gen.use_shapekeys):
-        data = json.dumps({"shapes": g3d.shapes}, cls=G3DJsonEncoder)
-        utils.write(filepath.with_suffix(".shapes"), data)
+def export_shapekeys(filepath: Path, shapes: List[GShape], binary=True):
+    # TODO binary too
+    data = g3dj_encoder.encode({"shapes": shapes})
+    _write(data, filepath.with_suffix(".shapes"), 'w')
+
+
+def _write(data, file: Path, flags='w'):
+    with open(file, flags) as f:
+        f.write(data)
+        print('write', file.absolute())
 
 
 def menu_func_export(self, context):
-    self.layout.operator(G3djExportOperator.bl_idname)
+    self.layout.operator(G3dExportOperator.bl_idname)
 
 
 def add_menu():

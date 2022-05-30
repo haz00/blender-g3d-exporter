@@ -69,9 +69,9 @@ class GMesh(object):
 
     def __init__(self, attributes: List[GVertexAttribute], id: str = None):
         self.attributes: List[GVertexAttribute] = attributes
-        self.vertices: List[List[float]] = []
-        self.vertex_index: Dict[int, int] = {}  # vertex hash -> vertex index
-        self.parts: List[GMeshPart] = []
+        self.vertices: List[List[float]] = list()
+        self.vertex_index: Dict[int, int] = dict()  # vertex hash -> vertex index
+        self.parts: List[GMeshPart] = list()
         self.id: bool = id
 
     def get_mesh_part(self, name: str):

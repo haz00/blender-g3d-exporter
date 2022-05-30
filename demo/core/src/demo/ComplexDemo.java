@@ -20,11 +20,11 @@ public class ComplexDemo extends BaseDemo {
     public void create() {
         super.create();
 
-        assets.load("complex.g3dj", Model.class);
+        assets.load("complex.g3db", Model.class);
         assets.load("complex.shapes", ModelShape.class);
         assets.finishLoading();
 
-        Model model = assets.get("complex.g3dj", Model.class);
+        Model model = assets.get("complex.g3db", Model.class);
         model.getMaterial("tree").set(new BlendingAttribute());
         inst = new ModelInstance(model);
 

@@ -17,11 +17,11 @@ public class ShapekeysDemo extends BaseDemo {
     public void create() {
         super.create();
 
-        assets.load("shapekeys.g3dj", Model.class);
+        assets.load("shapekeys.g3db", Model.class);
         assets.load("shapekeys.shapes", ModelShape.class);
         assets.finishLoading();
 
-        Model model = assets.get("shapekeys.g3dj", Model.class);
+        Model model = assets.get("shapekeys.g3db", Model.class);
         inst = new ModelInstance(model);
 
         ModelShape modelShape = assets.get("shapekeys.shapes", ModelShape.class);

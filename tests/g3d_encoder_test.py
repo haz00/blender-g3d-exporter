@@ -3,10 +3,17 @@
 import json
 
 from domain import *
-from g3dj_encoder import G3DJsonEncoder
+import g3dj_encoder
+import g3db_encoder
+import simpleubjson
 
+"""
+tests available only within blender context, 
+because they create blender structures such as Matrix, Vector etc.
+"""
 
-def test_g3d_encode():
+def _build_g3d() -> G3D:
+
     g3d = G3D()
 
     mesh = GMesh([
@@ -77,10 +84,19 @@ def test_g3d_encode():
             ]
             anim.bones.append(bone)
 
-    print(json.dumps(g3d, cls=G3DJsonEncoder))
+    return g3d
 
 
-def test_shapes_encode():
+def test_g3dj():
+    print(g3dj_encoder.encode(_build_g3d()))
+
+
+def test_g3db():    
+    data = g3db_encoder.encode(_build_g3d())
+    simpleubjson.pprint(data)
+
+
+def test_shapes():
     g3d = G3D()
 
     for i in range(2):
@@ -96,4 +112,4 @@ def test_shapes_encode():
             ]
             shape.keys.append(key)
 
-    print(json.dumps({"shapes": g3d.shapes}, cls=G3DJsonEncoder))
+    print(g3dj_encoder.encode({"shapes": g3d.shapes}))

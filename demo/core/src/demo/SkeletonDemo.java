@@ -13,10 +13,10 @@ public class SkeletonDemo extends BaseDemo{
     public void create() {
         super.create();
 
-        assets.load("skeleton.g3dj", Model.class);
+        assets.load("skeleton.g3db", Model.class);
         assets.finishLoading();
 
-        Model model = assets.get("skeleton.g3dj", Model.class);
+        Model model = assets.get("skeleton.g3db", Model.class);
         inst = new ModelInstance(model);
 
         armatureNode = inst.getNode("Armature");

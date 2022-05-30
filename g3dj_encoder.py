@@ -13,6 +13,8 @@ item_sep = ', '
 _encoder = encode_basestring_ascii
 float_format = "%9.6f"
 
+def encode(obj):
+    return json.dumps(obj, cls=G3DJsonEncoder)
 
 class G3DJsonEncoder(json.JSONEncoder):
 

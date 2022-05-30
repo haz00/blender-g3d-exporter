@@ -16,10 +16,10 @@ public class AnimationDemo extends BaseDemo {
     public void create() {
         super.create();
 
-        assets.load("animation.g3dj", Model.class);
+        assets.load("animation.g3db", Model.class);
         assets.finishLoading();
 
-        Model model = assets.get("animation.g3dj", Model.class);
+        Model model = assets.get("animation.g3db", Model.class);
         inst = new ModelInstance(model);
 
         animCtl = new AnimationController(inst);

@@ -18,6 +18,7 @@ if "bpy" in locals():
     importlib.reload(utils)
     importlib.reload(domain)
     importlib.reload(g3dj_encoder)
+    importlib.reload(g3db_encoder)
     importlib.reload(generator)
     importlib.reload(export_operator)
 else:
@@ -31,12 +32,13 @@ else:
     import utils
     import domain
     import g3dj_encoder
+    import g3db_encoder
     import generator
     import export_operator
 
 
 classes = [
-    export_operator.G3djExportOperator
+    export_operator.G3dExportOperator
 ]
 
 

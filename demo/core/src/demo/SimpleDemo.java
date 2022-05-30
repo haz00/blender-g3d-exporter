@@ -11,10 +11,10 @@ public class SimpleDemo extends BaseDemo {
     public void create() {
         super.create();
 
-        assets.load("simple.g3dj", Model.class);
+        assets.load("simple.g3db", Model.class);
         assets.finishLoading();
 
-        Model model = assets.get("simple.g3dj", Model.class);
+        Model model = assets.get("simple.g3db", Model.class);
         inst = new ModelInstance(model);
     }
 

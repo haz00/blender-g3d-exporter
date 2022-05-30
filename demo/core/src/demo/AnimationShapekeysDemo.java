@@ -19,11 +19,11 @@ public class AnimationShapekeysDemo extends BaseDemo {
     public void create() {
         super.create();
 
-        assets.load("animation and shapekeys.g3dj", Model.class);
+        assets.load("animation and shapekeys.g3db", Model.class);
         assets.load("animation and shapekeys.shapes", ModelShape.class);
         assets.finishLoading();
 
-        Model model = assets.get("animation and shapekeys.g3dj", Model.class);
+        Model model = assets.get("animation and shapekeys.g3db", Model.class);
         inst = new ModelInstance(model);
 
         animCtl = new AnimationController(inst);

@@ -18,7 +18,12 @@ source_files = [
     "__init__.py",
     "utils.py",
     "g3dj_encoder.py",
+    "g3db_encoder.py",
     "LICENSE",
+]
+
+libs = [
+    "simpleubjson"
 ]
 
 appdata_path = Path(os.getenv("APPDATA"))
@@ -43,6 +48,11 @@ def install():
                 src = source_home / src
                 print(f"copy {src} to {dst}")
                 shutil.copy(src, dst)
+
+            for lib in libs:
+                shutil.copytree(source_home / lib, dst / lib, dirs_exist_ok=True)
+                
+
 
 
 def zip():
