@@ -13,7 +13,7 @@ from .common import *
 
 
 class GMeshGeneratorOptions(object):
-    """data used for cascade generation within single scene object"""
+    """data used to generate a single scene object"""
 
     def __init__(self, original: bpy.types.Object):
         self.original: bpy.types.Object = original
@@ -70,7 +70,7 @@ class G3dGenerator(object):
             self.gen_vertices(mesh, opt, mesh_part, node_part, mat.index)
 
 
-    def normalize_blendweights(self, blendweights: List[GVertexBlendweightData]):
+    def norm_blendweights(self, blendweights: List[GVertexBlendweightData]):
         total = sum(b.weight for b in blendweights)
         
         if (total > 0):
@@ -103,11 +103,11 @@ class G3dGenerator(object):
             if (gbone != None):
                 blendweights.append(GVertexBlendweightData(gbone.index, vgroup.weight))
         
-        # necessary to add empty blendweights if array is not full yet
+        # it is necessary to add empty blendweights if the array is not full yet
         for i in range(opt.max_blendweights - len(blendweights)):
             blendweights.append(GVertexBlendweightData(0, 0))
 
-        self.normalize_blendweights(blendweights)
+        self.norm_blendweights(blendweights)
 
         # unwrap values to linear structure
         return flatten([[b.part_bone_index, b.weight] for b in blendweights])
@@ -178,7 +178,7 @@ class G3dGenerator(object):
 
 
     def analyze_mesh(self, opt: GMeshGeneratorOptions, use_armature: bool):
-        """Populates vertex attributes flags and setup vertex generation settings"""
+        """Setup vertex generation settings"""
         
         opt.attributes = [GVertexAttribute('POSITION', 3)]
 
@@ -214,13 +214,12 @@ class G3dGenerator(object):
             opt.uv_layer = next(filter(lambda layer: layer.active_render, uv_layers))
             opt.attributes.append(GVertexAttribute('TEXCOORD0', 2))
 
-        # last armature modifier
         opt.armature = opt.final_obj.find_armature() if use_armature else None
 
         if (opt.armature != None):
             print(f'has armature: {opt.armature.name}')
 
-            # find max groups assigned to any vertex
+            # find max groups assigned to any vertex to make optimal count of attributes
             for v in opt.final_mesh.vertices:
                 opt.max_blendweights = max(opt.max_blendweights, len(v.groups))
                 opt.max_blendweights = min(opt.max_blendweights, self.max_bones_per_vertex)
@@ -254,7 +253,7 @@ class G3dGenerator(object):
         
         gmesh = model.get_mesh(opt.attributes, obj.data.name)
 
-        # create gmesh if not exists
+        # create gmesh if it doesn't exist
         if (gmesh == None):
             if (opt.shape != None):
                 print(f"add shapekeys: {opt.shape.id}")
@@ -291,7 +290,7 @@ class G3dGenerator(object):
     def gen_armature_tree(self, node: GNode):
         """build tree from root bones"""
         print(f"generate bones for {node.id}: {len(node.source.data.bones)}")
-        # data.bones are flatten
+        # data.bones are flatten from the roots
         for b_bone in node.source.data.bones:
             if (b_bone.parent == None):
                 child = self.gen_armature_bones_recusvively(b_bone, self.add_bone_tip)
@@ -377,7 +376,7 @@ class G3dGenerator(object):
             
             for eval_idx in range(eval_count):
                 cur_frame = frame + eval_idx
-                # first keyframe is start of animation so it millis is 0
+                # first keyframe is the start of animation so it's millis is 0
                 millis = (1.0 / self.fps) * 1000 * (cur_frame - timeline[0])
 
                 pose = bone_action.eval_pose(cur_frame)
@@ -396,7 +395,7 @@ class G3dGenerator(object):
 
 
     def evaluate(self, obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Object, bpy.types.Mesh]:
-        """returns temporal trinaluated mesh with applied modifiers"""
+        """returns virtual trinaluated mesh with applied modifiers"""
         print(f"evaluate {obj.name}, apply modifiers {apply_modifiers}")
 
         if (apply_modifiers):
@@ -427,7 +426,7 @@ class G3dGenerator(object):
                     self.gen_armature_node(obj, model)
 
             elif (obj.type == 'MESH'):
-                # ensure the attached armature is also in export list - requires to blendweights
+                # ensure the attached armature (last modifier) is also in export list - blendweights requirements 
                 armature_selected = obj.find_armature() in objects if (self.use_armature) else False
 
                 self.gen_mesh_node(obj, model, armature_selected)
@@ -479,6 +478,7 @@ class G3dGenerator(object):
         self.flat_nodes.clear()
 
     def setup_principled(self, mat: GMaterial, bsdf: PrincipledBSDFWrapper):
+        """uses active output and connected Principled BSDF node sockets to collect infomation"""
         if (not self.setup_texture(mat, 'TRANSPARENCY', bsdf.alpha_texture)):
             mat.opacity = bsdf.alpha
 

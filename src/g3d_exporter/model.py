@@ -63,7 +63,7 @@ class GVertexAttribute(object):
 
 class GMesh(object):
     """
-    mesh is unique for attributes flags and for object with shapekeys, all other blender meshes will be merged into single mesh
+    mesh is unique for attributes flags and for meshes with shapekeys, all other blender meshes will be merged into single mesh
     """
 
     def __init__(self, attributes: List[GVertexAttribute], id: str = None):
@@ -108,8 +108,6 @@ class GTexture(object):
 
 
 class GMaterial(object):
-    """uses active output and connected Principled BSDF node sockets to collect infomation"""
-
     def __init__(self, id: str, index: int):
         self.id: str = id
         self.index = index
