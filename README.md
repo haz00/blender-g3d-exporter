@@ -17,7 +17,7 @@ Note that LibGDX default shader does not handle normal mapping and other rich PR
 1. [Download](https://github.com/haz00/blender-g3d-exporter/releases/latest)
 2. Blender: Preferrences - Addons - Install
 3. Do not forget to enable checkbox
-4. File - Export - .g3dj
+4. File - Export - .g3dj/.g3db
 5. Follow addon settings
 
 # Useful links
