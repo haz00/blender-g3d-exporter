@@ -38,4 +38,5 @@ blender-g3d-exporter Copyright (C) 2022 haz00 (haz00ku@gmail.com)
 
 # Credits
 [simpleubjson](https://github.com/brainwater/simpleubjson)
+
 Binary encoding based on part of [other addon](https://github.com/Dancovich/libgdx_blender_g3d_exporter)
