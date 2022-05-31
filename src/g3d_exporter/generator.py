@@ -7,6 +7,7 @@ from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
 from bpy_extras.node_shader_utils import ShaderImageTextureWrapper
 
 from typing import Any, Dict, Tuple, Union, List
+import os
 
 from .model import *
 from .common import *

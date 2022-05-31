@@ -180,7 +180,6 @@ class G3djExportOperator(BaseG3dExportOperator):
         self._write(data, filepath.with_suffix('.g3dj'), 'w')
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]):
-        # TODO binary too
         data = g3dj_encoder.encode({"shapes": shapes})
         self._write(data, filepath.with_suffix(".shapes"), 'w')
 
@@ -196,7 +195,8 @@ class G3dbExportOperator(BaseG3dExportOperator):
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]):
         # TODO binary too
-        print('WARN export_shapekeys not implemented')
+        data = g3dj_encoder.encode({"shapes": shapes})
+        self._write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 def menu_func_export(self, context):
