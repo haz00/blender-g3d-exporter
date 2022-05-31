@@ -14,7 +14,7 @@ from . import g3dj_encoder
 from . import g3db_encoder
 
 
-class BaseG3dExportOperator(Operator, ExportHelper):
+class BaseG3dExportOperator(ExportHelper):
 
     selected_only: BoolProperty(
         name="Selected Only",
@@ -170,10 +170,11 @@ class BaseG3dExportOperator(Operator, ExportHelper):
             print('write', file.absolute())
 
 
-class G3djExportOperator(BaseG3dExportOperator):
+class G3djExportOperator(Operator, BaseG3dExportOperator):
     bl_idname = "g3dj_export_operator.export"
     bl_label = "LibGDX (.g3dj)"
     filename_ext = ".g3dj"
+    bl_options = {'PRESET'}
 
     def export_g3d(self, filepath: Path, model: G3dModel):
         data = g3dj_encoder.encode(model)
@@ -184,10 +185,11 @@ class G3djExportOperator(BaseG3dExportOperator):
         self._write(data, filepath.with_suffix(".shapes"), 'w')
 
 
-class G3dbExportOperator(BaseG3dExportOperator):
+class G3dbExportOperator(Operator, BaseG3dExportOperator):
     bl_idname = "g3db_export_operator.export"
     bl_label = "LibGDX (.g3db)"
     filename_ext = ".g3db"
+    bl_options = {'PRESET'}
 
     def export_g3d(self, filepath: Path, model: G3dModel):
         data = g3db_encoder.encode(model)
