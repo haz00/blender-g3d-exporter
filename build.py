@@ -19,7 +19,7 @@ blender_addon_paths = [
 
 def install():
     for addons_path in blender_addon_paths:
-        print(f"\ninstall to {addons_path}")
+        print(f"install to {addons_path}")
 
         if (addons_path.exists()):
             shutil.copytree(source_dir, addons_path, dirs_exist_ok=True)
