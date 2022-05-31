@@ -2,7 +2,7 @@
 
 import struct
 from typing import Any, Union, List
-from mathutils import Color, Quaternion, Vector
+from mathutils import Color, Matrix, Quaternion, Vector
 
 
 def unwrapv(v: Union[Vector, Color]) -> List[float]:
@@ -48,3 +48,16 @@ def conv_quat(v: Union[List[float], Quaternion]) -> List[float]:
 def pack_color(rgba: List[float]) -> float:
     abgr_int = int(rgba[3] * 255) << 24 | int(rgba[2] * 255) << 16 | int(rgba[1] * 255) << 8 | int(rgba[0] * 255)
     return int_bits_to_float(abgr_int & 0xfeffffff)
+
+
+def new_transorm_matrix(loc: Vector, rot: Quaternion, sca: Vector) -> Matrix:
+    mat_rot = rot.to_matrix().to_4x4()
+
+    mat_loc = Matrix.Translation(loc)
+
+    mat_scax = Matrix.Scale(sca[0], 4, (1.0, 0.0, 0.0))
+    mat_scay = Matrix.Scale(sca[1], 4, (0.0, 1.0, 0.0))
+    mat_scaz = Matrix.Scale(sca[2], 4, (0.0, 0.0, 1.0))
+    mat_sca = mat_scax @ mat_scay @ mat_scaz
+
+    return mat_loc @ mat_rot @ mat_sca

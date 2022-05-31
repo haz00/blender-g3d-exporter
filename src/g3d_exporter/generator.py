@@ -547,7 +547,7 @@ class BoneAction(object):
         if (self.b_bone.rotation_mode != 'QUATERNION'):
             quat = euler.to_quaternion()
 
-        trans = Matrix.LocRotScale(loc, quat, scale)
+        trans = new_transorm_matrix(loc, quat, scale)
         rest = self.b_bone.bone.matrix_local
 
         if (self.b_bone.parent):
