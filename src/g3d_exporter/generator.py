@@ -506,7 +506,7 @@ class G3dGenerator(object):
 
 
     def setup_texture(self, mat: GMaterial, type: str, wrapper: ShaderImageTextureWrapper) -> bool:
-        if (wrapper and wrapper.image):
+        if (wrapper and wrapper.image and wrapper.image.source == 'FILE'):
             filename = os.path.basename(wrapper.image.filepath_from_user())
             tex = GTexture(wrapper.image.name, type, filename, wrapper.image)
             mat.textures.append(tex)

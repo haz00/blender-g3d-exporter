@@ -188,22 +188,16 @@ class BaseG3dExportOperator(ExportHelper):
         for mat in model.materials:
             for tex in mat.textures:
                 img = tex.source 
+                dst = dst_dir / tex.filename
+                print(f"copy texture {tex.id} to {dst}")
 
-                if img.source == 'FILE':
-                    dst = dst_dir / tex.filename
-                    print(f"copy texture {tex.id} to {dst}")
-
-                    if img.packed_file == None:
-                        shutil.copyfile(img.filepath_from_user(), dst)
-                    else:
-                        with open(dst, 'wb') as f:
-                            f.write(img.packed_file.data)
-                        
-                    tex.filename = f"textures/{tex.filename}"
-
+                if img.packed_file == None:
+                    shutil.copyfile(img.filepath_from_user(), dst)
                 else:
-                    print(f"skip copy texture: not a file: {img.source}")
-
+                    with open(dst, 'wb') as f:
+                        f.write(img.packed_file.data)
+                    
+                tex.filename = f"textures/{tex.filename}"
 
 
 class G3djExportOperator(Operator, BaseG3dExportOperator):
