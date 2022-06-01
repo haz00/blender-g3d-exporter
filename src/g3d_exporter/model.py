@@ -91,10 +91,11 @@ class GMesh(object):
 
 
 class GTexture(object):
-    def __init__(self, id: str, type: str, filename: str):
+    def __init__(self, id: str, type: str, filename: str, source: bpy.types.Image):
         self.id: str = id
         self.type: str = type
         self.filename: str = filename
+        self.source: bpy.types.Image = source
 
     def __str__(self) -> str:
         return f"GTexture({self.id}, {self.type}, {self.filename})"

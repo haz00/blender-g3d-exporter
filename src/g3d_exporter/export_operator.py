@@ -7,6 +7,7 @@ from bpy.types import Operator
 
 from pathlib import Path
 from typing import Any, List
+import shutil
 
 from .model import G3dModel, GShape
 from .generator import G3dGenerator
@@ -109,6 +110,12 @@ class BaseG3dExportOperator(ExportHelper):
         default=True,
     )
 
+    copy_textures: BoolProperty(
+        name="Copy textures",
+        description="Copy associated textures to textures/ subfolder",
+        default=False,
+    )
+
     fps: IntProperty(
         name="FPS target",
         description="Used to bake animation",
@@ -157,6 +164,9 @@ class BaseG3dExportOperator(ExportHelper):
         model = gen.generate(objects)
         out = Path(self.filepath)
 
+        if self.copy_textures:
+            self._copy_textures(out.parent, model)
+
         self.export_g3d(out, model)
 
         if self.use_shapekeys:
@@ -168,6 +178,32 @@ class BaseG3dExportOperator(ExportHelper):
         with open(file, flags) as f:
             f.write(data)
             print('write', file.absolute())
+
+
+    def _copy_textures(self, source_dir: Path, model: G3dModel):
+        """Copy or unpack textures to textures subfolder and update model paths"""
+        dst_dir =  source_dir / "textures"
+        dst_dir.mkdir(exist_ok=True)
+
+        for mat in model.materials:
+            for tex in mat.textures:
+                img = tex.source 
+
+                if img.source == 'FILE':
+                    dst = dst_dir / tex.filename
+                    print(f"copy texture {tex.id} to {dst}")
+
+                    if img.packed_file == None:
+                        shutil.copyfile(img.filepath_from_user(), dst)
+                    else:
+                        with open(dst, 'wb') as f:
+                            f.write(img.packed_file.data)
+                        
+                    tex.filename = f"textures/{tex.filename}"
+
+                else:
+                    print(f"skip copy texture: not a file: {img.source}")
+
 
 
 class G3djExportOperator(Operator, BaseG3dExportOperator):

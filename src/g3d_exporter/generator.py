@@ -54,7 +54,7 @@ class G3dGenerator(object):
         self.apply_modifiers = True
         self.fps = bpy.context.scene.render.fps
         self.primitive_type = 'TRIANGLES'
-        self.flat_nodes: Dict[str, GNode] = dict()
+        self._flat_nodes: Dict[str, GNode] = dict()
 
     def gen_node_part(self, node: GNode, mesh: GMesh, opt: GMeshGeneratorOptions, mat: GMaterial):
         mesh_part_id = f'{opt.original.data.name}_part{mat.index}'
@@ -275,7 +275,7 @@ class G3dGenerator(object):
 
     def gen_node(self, obj: bpy.types.Object) -> GNode:
         node = GNode(obj.name, obj)
-        self.flat_nodes[node.id] = node
+        self._flat_nodes[node.id] = node
         print(f"add node: {node.id}")
         return node
 
@@ -454,29 +454,29 @@ class G3dGenerator(object):
     def resolve_nodes_tree(self, model: G3dModel):
         """assotiate parent-child node relations"""
 
-        for k in self.flat_nodes:
-            node = self.flat_nodes[k]
+        for k in self._flat_nodes:
+            node = self._flat_nodes[k]
 
             for b_child in node.source.children:
-                if (b_child.name in self.flat_nodes):
+                if (b_child.name in self._flat_nodes):
 
                     # but not for armature's children with armature modifier
                     # they should stay in root
                     if (node.source.type == 'ARMATURE' and b_child.find_armature() != None):
                         continue
 
-                    child = self.flat_nodes[b_child.name]
+                    child = self._flat_nodes[b_child.name]
 
                     node.children.append(child)
                     child.parent = node
 
         # nodes without parent going to root
-        for k in self.flat_nodes:
-            node = self.flat_nodes[k]
+        for k in self._flat_nodes:
+            node = self._flat_nodes[k]
             if (node.parent == None):
                 model.nodes.append(node)
         
-        self.flat_nodes.clear()
+        self._flat_nodes.clear()
 
     def setup_principled(self, mat: GMaterial, bsdf: PrincipledBSDFWrapper):
         """uses active output and connected Principled BSDF node sockets to collect infomation"""
@@ -508,7 +508,7 @@ class G3dGenerator(object):
     def setup_texture(self, mat: GMaterial, type: str, wrapper: ShaderImageTextureWrapper) -> bool:
         if (wrapper and wrapper.image):
             filename = os.path.basename(wrapper.image.filepath_from_user())
-            tex = GTexture(wrapper.image.name, type, filename)
+            tex = GTexture(wrapper.image.name, type, filename, wrapper.image)
             mat.textures.append(tex)
             print(f"add texture {tex}")
             return True
