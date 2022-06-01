@@ -34,6 +34,9 @@ import static com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.createDiff
 import static com.badlogic.gdx.math.MathUtils.degRad;
 import static com.badlogic.gdx.math.MathUtils.sin;
 
+/**
+ * Encapsulates boilerplate stuff - nothing to read here
+ */
 public abstract class BaseDemo extends ApplicationAdapter {
 
     float totalTime = 0;
@@ -137,8 +140,9 @@ public abstract class BaseDemo extends ApplicationAdapter {
 
     abstract void renderDemo();
 
-    // TODO extract to separate class
     void renderSkeleton(Node armature, boolean bones, boolean axes, boolean names, boolean relations) {
+        // hardcode implemented for this demo purposes only
+
         Gdx.gl.glClear(GL20.GL_DEPTH_BUFFER_BIT);
 
         shapeRenderer.setProjectionMatrix(cam.combined);

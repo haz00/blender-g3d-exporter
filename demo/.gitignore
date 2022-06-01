@@ -1,10 +1,5 @@
 *.blend*
 export_demo_script.py
-assets/selected.g3dj
-assets/selected.g3db
-assets/selected.shapes
-core/src/demo/SelectedDemo.java
-desktop/src/demo/DesktopLauncher2.java
 
 .idea/
 *.iml

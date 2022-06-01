@@ -9,7 +9,7 @@ import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
 import com.haz00.g3dmodelshape.ModelShape;
 import com.haz00.g3dmodelshape.MeshShape;
 
-public class ComplexDemo extends BaseDemo {
+public class DemoImpl extends BaseDemo {
 
     private ModelInstance inst;
     private AnimationController animCtl;
@@ -20,19 +20,19 @@ public class ComplexDemo extends BaseDemo {
     public void create() {
         super.create();
 
-        assets.load("complex.g3db", Model.class);
-        assets.load("complex.shapes", ModelShape.class);
+        assets.load("suzanne.g3db", Model.class);
+        assets.load("suzanne.shapes", ModelShape.class);
         assets.finishLoading();
 
-        Model model = assets.get("complex.g3db", Model.class);
+        Model model = assets.get("suzanne.g3db", Model.class);
         model.getMaterial("tree").set(new BlendingAttribute());
         inst = new ModelInstance(model);
 
         animCtl = new AnimationController(inst);
-        animCtl.setAnimation("Armature.002|complex", -1);
-        armatureNode = inst.getNode("Armature.002");
+        animCtl.setAnimation("SuzanneArmature|SuzanneAction", -1);
+        armatureNode = inst.getNode("SuzanneArmature");
 
-        ModelShape modelShape = assets.get("complex.shapes", ModelShape.class);
+        ModelShape modelShape = assets.get("suzanne.shapes", ModelShape.class);
 
         headShape = modelShape.getShape("head mesh");
         headShape.setMesh(inst.getNode("head"));

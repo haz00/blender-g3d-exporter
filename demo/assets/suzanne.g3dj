@@ -7469,7 +7469,7 @@
       "children": [  ]
     }, 
     {
-      "id": "Armature.002", 
+      "id": "SuzanneArmature", 
       "rotation": [  0.707107,  0.000000,  0.000000, -0.707107 ], 
       "scale": [  1.000000,  1.000000,  1.000000 ], 
       "translation": [  0.000000,  0.000000,  0.000000 ], 
@@ -7588,7 +7588,7 @@
    ], 
   "animations": [ 
     {
-      "id": "Armature.002|complex", 
+      "id": "SuzanneArmature|SuzanneAction", 
       "bones": [ 
         
         {
