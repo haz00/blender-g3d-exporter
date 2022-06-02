@@ -35,6 +35,56 @@ class GVertexBlendweightData(object):
         self.weight = weight
 
 
+class BoneAction(object):
+    """Encapsulates valid action curves of bone"""
+    def __init__(self, b_bone: bpy.types.PoseBone, action: bpy.types.Action) -> None:
+        self.b_bone = b_bone
+        self.loc_curves: List[bpy.types.FCurve] = []
+        self.scale_curves: List[bpy.types.FCurve] = []
+        self.quat_curves: List[bpy.types.FCurve] = []
+        self.euler_curves: List[bpy.types.FCurve] = []
+
+        for curve in action.groups[b_bone.name].channels:
+            # TODO respect existing but disabled curves?
+            if curve.data_path.endswith('location'):
+                self.loc_curves.append(curve)
+            elif curve.data_path.endswith('scale'):
+                self.scale_curves.append(curve)
+            elif curve.data_path.endswith('rotation_quaternion'):
+                self.quat_curves.append(curve)
+            elif curve.data_path.endswith('rotation_euler'):
+                self.euler_curves.append(curve)            
+
+    def curves(self) -> List[bpy.types.FCurve]:
+        return flatten([self.loc_curves, self.scale_curves, self.quat_curves, self.euler_curves])
+
+
+    def eval_pose(self, frame: int) -> Matrix: 
+        
+        loc = self.eval_curves(frame, self.loc_curves, Vector())
+        scale = self.eval_curves(frame, self.scale_curves, Vector((1, 1, 1)))
+        quat = self.eval_curves(frame, self.quat_curves, Quaternion())
+        euler = self.eval_curves(frame, self.euler_curves, Euler())
+        
+        if (self.b_bone.rotation_mode != 'QUATERNION'):
+            quat = euler.to_quaternion()
+
+        trans = new_transorm_matrix(loc, quat, scale)
+        rest = self.b_bone.bone.matrix_local
+
+        if (self.b_bone.parent):
+            # relative to parent
+            rest = self.b_bone.parent.bone.matrix_local.inverted() @ rest
+
+        return rest @ trans
+
+
+    def eval_curves(self, frame: int, curves: List[bpy.types.FCurve], into: Union[Vector, Quaternion, Euler]) -> Union[Vector, Quaternion, Euler]:
+        for curve in curves: 
+            into[curve.array_index] = curve.evaluate(frame)
+        return into
+
+
 class G3dGenerator(object):
 
     def __init__(self) -> None:
@@ -55,6 +105,7 @@ class G3dGenerator(object):
         self.fps = bpy.context.scene.render.fps
         self.primitive_type = 'TRIANGLES'
         self._flat_nodes: Dict[str, GNode] = dict()
+
 
     def gen_node_part(self, node: GNode, mesh: GMesh, opt: GMeshGeneratorOptions, mat: GMaterial):
         mesh_part_id = f'{opt.original.data.name}_part{mat.index}'
@@ -77,6 +128,7 @@ class G3dGenerator(object):
         if (total > 0):
             for b in blendweights:
                 b.weight /= total
+
 
     def gen_blendweights(self, node_part: GNodePart, vert: bpy.types.MeshVertex, opt: GMeshGeneratorOptions) -> List[float]:
 
@@ -112,6 +164,7 @@ class G3dGenerator(object):
 
         # unwrap values to linear structure
         return flatten([[b.part_bone_index, b.weight] for b in blendweights])
+
 
     def gen_vertices(self, mesh: GMesh, opt: GMeshGeneratorOptions, mesh_part: GMeshPart, node_part: GMeshPart, mat_index: int):
         for polygon in opt.final_mesh.polygons:
@@ -168,6 +221,7 @@ class G3dGenerator(object):
 
                 index = mesh.vertex_index[vhash]
                 mesh_part.indices.append(index)
+
 
     def prepare_mesh(self, opt: GMeshGeneratorOptions):
         """Creates final triangulated mesh with applied object modifiers if possible"""
@@ -231,6 +285,7 @@ class G3dGenerator(object):
             for i in range(opt.max_blendweights):
                 opt.attributes.append(GVertexAttribute('BLENDWEIGHT' + str(i), 2))
 
+
     def gen_material(self, model: G3dModel, index: int, mat: bpy.types.Material) -> GMaterial:
         gmat = model.get_material(mat.name)
 
@@ -241,6 +296,7 @@ class G3dGenerator(object):
             print(f'add material: {gmat.id}')
 
         return gmat
+
 
     def gen_mesh_node(self, obj: bpy.types.Object, model: G3dModel, use_armature: bool):
         print(f'generate mesh node: {obj.name}')
@@ -256,15 +312,12 @@ class G3dGenerator(object):
 
         # create gmesh if it doesn't exist
         if (gmesh == None):
+            gmesh = GMesh(opt.attributes, obj.data.name)
+            model.add_mesh(gmesh)
+
             if (opt.shape != None):
                 print(f"add shapekeys: {opt.shape.id}")
                 model.shapes.append(opt.shape)
-
-                gmesh = GMesh(opt.attributes, obj.data.name)
-            else:
-                gmesh = GMesh(opt.attributes, None)
-
-            model.add_mesh(gmesh)
 
         node = self.gen_node(obj)
 
@@ -273,11 +326,13 @@ class G3dGenerator(object):
             gmat = self.gen_material(model, i, mat)
             self.gen_node_part(node, gmesh, opt, gmat)
 
+
     def gen_node(self, obj: bpy.types.Object) -> GNode:
         node = GNode(obj.name, obj)
         self._flat_nodes[node.id] = node
         print(f"add node: {node.id}")
         return node
+
 
     def gen_armature_node(self, obj: bpy.types.Object, model: G3dModel):
         print(f'generate armature node: {obj.name}')
@@ -288,6 +343,7 @@ class G3dGenerator(object):
         if (self.use_actions):
             self.gen_armature_animations(node, model)
 
+
     def gen_armature_tree(self, node: GNode):
         """build tree from root bones"""
         print(f"generate bones for {node.id}: {len(node.source.data.bones)}")
@@ -296,6 +352,7 @@ class G3dGenerator(object):
             if (b_bone.parent == None):
                 child = self.gen_armature_bones_recusvively(b_bone, self.add_bone_tip)
                 node.children.append(child)
+
 
     def gen_armature_animations(self, node: GNode, model: G3dModel):
         for action in bpy.data.actions:
@@ -313,6 +370,7 @@ class G3dGenerator(object):
             if (len(anim.bones) > 0):
                 print(f"add animation: {anim.id}")
                 model.animations.append(anim)
+
 
     def gen_armature_bones_recusvively(self, bone: bpy.types.Bone, add_tip: bool):
         node = GNode(bone.name, None)
@@ -339,6 +397,7 @@ class G3dGenerator(object):
             node.children.append(tip)
 
         return node
+
 
     def gen_bone_animation(self, action: bpy.types.Action, b_bone: bpy.types.PoseBone) -> GBoneAnimation:
         """
@@ -386,6 +445,7 @@ class G3dGenerator(object):
 
         return anim_bone
 
+
     def tringalute(self, mesh: bpy.types.Mesh):
         bm = bmesh.new()
         bm.from_mesh(mesh)
@@ -408,6 +468,7 @@ class G3dGenerator(object):
         mesh = obj.to_mesh()
         self.tringalute(mesh)
         return (obj, mesh)
+
 
     def generate(self, objects: List[bpy.types.Object]) -> G3dModel:
         print(f'generate: objects count: {len(objects)}')
@@ -478,6 +539,7 @@ class G3dGenerator(object):
         
         self._flat_nodes.clear()
 
+
     def setup_principled(self, mat: GMaterial, bsdf: PrincipledBSDFWrapper):
         """uses active output and connected Principled BSDF node sockets to collect infomation"""
         if (not self.setup_texture(mat, 'TRANSPARENCY', bsdf.alpha_texture)):
@@ -513,50 +575,3 @@ class G3dGenerator(object):
             print(f"add texture {tex}")
             return True
         return False
-
-class BoneAction(object):
-    """Encapsulates valid action curves of bone"""
-    def __init__(self, b_bone: bpy.types.PoseBone, action: bpy.types.Action) -> None:
-        self.b_bone = b_bone
-        self.loc_curves: List[bpy.types.FCurve] = []
-        self.scale_curves: List[bpy.types.FCurve] = []
-        self.quat_curves: List[bpy.types.FCurve] = []
-        self.euler_curves: List[bpy.types.FCurve] = []
-
-        for curve in action.groups[b_bone.name].channels:
-            # TODO respect existing but disabled curves?
-            if curve.data_path.endswith('location'):
-                self.loc_curves.append(curve)
-            elif curve.data_path.endswith('scale'):
-                self.scale_curves.append(curve)
-            elif curve.data_path.endswith('rotation_quaternion'):
-                self.quat_curves.append(curve)
-            elif curve.data_path.endswith('rotation_euler'):
-                self.euler_curves.append(curve)            
-
-    def curves(self) -> List[bpy.types.FCurve]:
-        return flatten([self.loc_curves, self.scale_curves, self.quat_curves, self.euler_curves])
-
-    def eval_pose(self, frame: int) -> Matrix: 
-        
-        loc = self.eval_curves(frame, self.loc_curves, Vector())
-        scale = self.eval_curves(frame, self.scale_curves, Vector((1, 1, 1)))
-        quat = self.eval_curves(frame, self.quat_curves, Quaternion())
-        euler = self.eval_curves(frame, self.euler_curves, Euler())
-        
-        if (self.b_bone.rotation_mode != 'QUATERNION'):
-            quat = euler.to_quaternion()
-
-        trans = new_transorm_matrix(loc, quat, scale)
-        rest = self.b_bone.bone.matrix_local
-
-        if (self.b_bone.parent):
-            # relative to parent
-            rest = self.b_bone.parent.bone.matrix_local.inverted() @ rest
-
-        return rest @ trans
-
-    def eval_curves(self, frame: int, curves: List[bpy.types.FCurve], into: Union[Vector, Quaternion, Euler]) -> Union[Vector, Quaternion, Euler]:
-        for curve in curves: 
-            into[curve.array_index] = curve.evaluate(frame)
-        return into
