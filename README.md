@@ -3,11 +3,17 @@ Export Blender scene to native LibGDX model format.
 
 The demo folder contains LibGDX project with examples.
 
+<p align="center">
+    <img src="./resources/screenshot.jpg"/><br>
+    <em>Screenshot v0.6</em>
+</p>
+
 ## Features
 - Blender 2.83 LTS, 2.93 LTS, 3.0, 3.1
 - Y-up
 - Bake bone animations
 - Vertex attributes customization
+- Binary encoding
 - Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
 Note that LibGDX default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
@@ -25,7 +31,7 @@ Note that LibGDX default shader does not handle normal mapping and other rich PR
 
 [G3D Specification](https://github.com/libgdx/fbx-conv/wiki/Version-0.1-%28libgdx-0.9.9%29)
 
-Blender developing 
+For Blender developers
 [1](https://docs.blender.org/api/current/info_quickstart.html) 
 [2](https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules)
 [3](https://docs.blender.org/manual/en/latest/advanced/scripting/index.html)
