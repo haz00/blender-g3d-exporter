@@ -36,29 +36,26 @@ class BaseG3dExportOperator(ExportHelper):
     )
 
     use_normal: BoolProperty(
-        name="Vertex normal",
+        name="Normal",
         description="Include vertex normal attribute",
         default=False,
     )
 
     use_color: BoolProperty(
-        name="Vertex color",
-        description="Include vertex color attribute",
-        default=True,
+        name="Color",
+        description="Include vertex color attribute. The Active Render slot in Vertex Colors will be used",
+        default=False,
     )
 
-    use_color_type: EnumProperty(
-        name="Vertex color type",
-        description="",
-        default='COLOR',
-        items=(
-            ('COLOR', 'COLOR', 'RGBA floats'),
-            ('COLORPACKED', 'COLORPACKED', 'Pack RGBA floats into single int'))
+    packed_color: BoolProperty(
+        name="Packed color",
+        description="Pack RGBA floats into single int",
+        default=True,
     )
 
     use_uv: BoolProperty(
         name="UV",
-        description="",
+        description="The Active Render slot in UV Maps will be used",
         default=True,
     )
 
@@ -69,13 +66,13 @@ class BaseG3dExportOperator(ExportHelper):
     )
 
     use_tangent: BoolProperty(
-        name="Vertex tangent",
+        name="Tangent",
         description="Include vertex tangent attribute",
         default=False,
     )
 
     use_binormal: BoolProperty(
-        name="Vertex binormal",
+        name="Bi-normal",
         description="Include vertex binormal attribute",
         default=False,
     )
@@ -93,20 +90,20 @@ class BaseG3dExportOperator(ExportHelper):
     )
 
     max_bones_per_vertex: IntProperty(
-        name="Max bones per vertex",
-        description="",
+        name="Max bones",
+        description="Max bones per single vertex",
         default=4,
     )
 
     add_bone_tip: BoolProperty(
         name="Bone tip",
-        description="Add extra bone with name _end to the last bone",
+        description="Add extra bone with name '_end' to the last bone",
         default=True,
     )
 
     use_actions: BoolProperty(
-        name="Animation",
-        description="",
+        name="Actions",
+        description="Export actions as animation",
         default=True,
     )
 
@@ -141,6 +138,72 @@ class BaseG3dExportOperator(ExportHelper):
             ('TRIANGLE_STRIP', 'TRIANGLE_STRIP', ''),
             ('LINE_STRIP', 'LINE_STRIP', ''))
     )
+    
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        layout.row().prop(operator, "selected_only")
+        layout.row().prop(operator, "apply_modifiers")
+        layout.row().prop(operator, "y_up")
+
+        # mesh attributes
+        box = layout.box()
+        box.label(text = "Mesh")
+        box.row().prop(operator, "use_normal")
+
+        row = box.row()
+        row.prop(operator, "use_color")
+
+        sub = row.row()
+        sub.enabled = self.use_color
+        sub.prop(operator, "packed_color", text="", icon='UGLYPACKAGE')
+
+        box.row().prop(operator, "use_tangent")
+        box.row().prop(operator, "use_binormal")
+
+        row = box.row()
+        row.prop(operator, "use_uv")
+
+        sub = row.row()
+        sub.enabled = self.use_uv
+        sub.prop(operator, "flip_uv", text="", icon='MOD_MIRROR')
+
+        box.row().prop(operator, "use_shapekeys")
+        box.row().prop(operator, "primitive_type")
+
+        # material
+        box = layout.box()
+        box.label(text = "Material")
+        box.row().prop(operator, "copy_textures")
+        
+        row = box.row()
+        row.enabled = self.copy_textures
+        row.prop(operator, "copy_texture_strategy")
+
+        # armature
+        box = layout.box()
+        box.label(text = "Armature")
+        box.row().prop(operator, "use_armature")
+        row = box.row()
+        row.enabled = self.use_armature
+        row.prop(operator, "max_bones_per_vertex")
+        row = box.row()
+        row.enabled = self.use_armature
+        row.prop(operator, "add_bone_tip")
+
+        # animation
+        box = layout.box()
+        box.label(text = "Armature")
+        box.row().prop(operator, "use_actions")
+        
+        row = box.row()
+        row.enabled = self.use_actions 
+        row.prop(operator, "fps")
 
 
     def execute(self, context):
@@ -150,7 +213,7 @@ class BaseG3dExportOperator(ExportHelper):
         gen.y_up = self.y_up
         gen.use_normal = self.use_normal
         gen.use_color = self.use_color
-        gen.use_color_type = self.use_color_type
+        gen.packed_color = self.packed_color
         gen.use_uv = self.use_uv
         gen.use_tangent = self.use_tangent
         gen.use_binormal = self.use_binormal
@@ -182,6 +245,7 @@ class BaseG3dExportOperator(ExportHelper):
 
         return {'FINISHED'}
 
+
     def _write(self, data, file: Path, flags='w'):
         with open(file, flags) as f:
             f.write(data)
@@ -211,9 +275,8 @@ class BaseG3dExportOperator(ExportHelper):
                         f.write(img.packed_file.data)
                 
 
-
 class G3djExportOperator(Operator, BaseG3dExportOperator):
-    bl_idname = "g3dj_export_operator.export"
+    bl_idname = "export_scene.g3dj"
     bl_label = "LibGDX (.g3dj)"
     filename_ext = ".g3dj"
     bl_options = {'PRESET'}
@@ -222,20 +285,23 @@ class G3djExportOperator(Operator, BaseG3dExportOperator):
         data = g3dj_encoder.encode(model)
         self._write(data, filepath.with_suffix('.g3dj'), 'w')
 
+
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]):
         data = g3dj_encoder.encode({"shapes": shapes})
         self._write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 class G3dbExportOperator(Operator, BaseG3dExportOperator):
-    bl_idname = "g3db_export_operator.export"
+    bl_idname = "export_scene.g3db"
     bl_label = "LibGDX (.g3db)"
     filename_ext = ".g3db"
     bl_options = {'PRESET'}
 
+
     def export_g3d(self, filepath: Path, model: G3dModel):
         data = g3db_encoder.encode(model)
         self._write(data, filepath.with_suffix('.g3db'), 'wb')
+
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]):
         # TODO binary too
@@ -244,13 +310,14 @@ class G3dbExportOperator(Operator, BaseG3dExportOperator):
 
 
 def menu_func_export(self, context):
-    self.layout.operator(G3djExportOperator.bl_idname)
-    self.layout.operator(G3dbExportOperator.bl_idname)
+    self.layout.operator(G3djExportOperator.bl_idname, text="G3D (.g3dj)")
+    self.layout.operator(G3dbExportOperator.bl_idname, text="G3D (.g3db)")
 
 
-def register_menu():
+
+def register():
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 
-def unregister_menu():
+def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)

@@ -91,7 +91,7 @@ class G3dGenerator(object):
         self.y_up = True
         self.use_normal = True
         self.use_color = True
-        self.use_color_type = 'COLOR'
+        self.packed_color = True
         self.use_uv = True
         self.use_tangent = True
         self.use_binormal = True
@@ -195,7 +195,7 @@ class G3dGenerator(object):
 
                 if (opt.color_layer != None):
                     col = opt.color_layer.data[loop_index].color # rgba
-                    if (self.use_color_type == 'COLORPACKED'):
+                    if (self.packed_color):
                         vert_data.append(pack_color(col))
                     else:
                         vert_data.extend(col)
@@ -259,7 +259,7 @@ class G3dGenerator(object):
         if (self.use_color and len(color_layers) > 0):
             opt.color_layer = next(filter(lambda layer: layer.active_render, color_layers))
 
-            if (self.use_color_type == 'COLORPACKED'):
+            if (self.packed_color):
                 opt.attributes.append(GVertexAttribute('COLORPACKED', 1))
             else:
                 opt.attributes.append(GVertexAttribute('COLOR', 4))
