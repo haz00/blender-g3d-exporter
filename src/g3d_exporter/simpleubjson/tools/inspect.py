@@ -8,13 +8,12 @@
 #
 
 import sys
-# import simpleubjson
 from ..draft8 import Draft8Decoder
 from ..draft9 import Draft9Decoder
 from ..exceptions import EarlyEndOfStreamError
 
 
-def pprint(data, output=sys.stdout, allow_noop=True,
+def pprint(data, encoder, output=sys.stdout, allow_noop=True,
            indent=' ' * 4, max_level=None, spec='draft-9'):
     """Pretty prints ubjson data using the handy [ ]-notation to represent it in
     readable form. Example::
@@ -104,7 +103,7 @@ def pprint(data, output=sys.stdout, allow_noop=True,
                 value = decoder.dispatch[tag](decoder, tag, length, value)
                 pattern = '[%s] [%s] [%s] [%s]\n'
                 # very dirty hack to show size as marker and value
-                _decoder = Draft9Decoder(simpleubjson.encode(length, spec=spec))
+                _decoder = Draft9Decoder(encoder(length, spec=spec))
                 tlv = _decoder.next_tlv()
                 args = tuple([utag, tlv[0].decode(), tlv[2], value])
                 maybe_write(pattern % args, level)
