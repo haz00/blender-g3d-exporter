@@ -25,11 +25,10 @@ Note that LibGDX default shader does not handle normal mapping and other rich PR
 
 [G3D Specification](https://github.com/libgdx/fbx-conv/wiki/Version-0.1-%28libgdx-0.9.9%29)
 
-https://docs.blender.org/api/current/info_quickstart.html
-
-https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules
-
-https://docs.blender.org/manual/en/latest/advanced/scripting/index.html
+Blender developing 
+[1](https://docs.blender.org/api/current/info_quickstart.html) 
+[2](https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules)
+[3](https://docs.blender.org/manual/en/latest/advanced/scripting/index.html)
 
 # License
 GNU GPLv3 [LICENSE](https://github.com/haz00/blender-g3d-exporter/blob/master/LICENSE)
