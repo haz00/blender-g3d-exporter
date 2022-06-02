@@ -4,7 +4,7 @@ bl_info = {
     "name": "LibGDX G3D Exporter",
     "description": "Export scene to LibGDX compatible format",
     "author": "haz00",
-    "version": (0, 4),
+    "version": (0, 5),
     "blender": (2, 93, 0),
     "location": "File > Export",
     "category": "Import-Export",
