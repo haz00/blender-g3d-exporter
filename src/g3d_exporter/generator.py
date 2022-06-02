@@ -252,7 +252,7 @@ class G3dGenerator(object):
         self.prepare_mesh(opt)
         self.analyze_mesh(opt, use_armature)
         
-        gmesh = model.get_mesh(opt.attributes, obj.data.name)
+        gmesh = model.get_mesh(opt.attributes, obj.data.name, opt.shape != None)
 
         # create gmesh if it doesn't exist
         if (gmesh == None):

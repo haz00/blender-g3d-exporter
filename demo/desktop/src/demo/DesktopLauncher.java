@@ -14,6 +14,7 @@ public class DesktopLauncher {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("Demo");
         config.setWindowedMode(width, height);
+        config.setBackBufferConfig(8, 8, 8, 8, 16, 0, 4);
 
         new Lwjgl3Application(new DemoImpl(), config);
     }

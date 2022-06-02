@@ -272,9 +272,9 @@ class G3dModel(object):
         self.meshes.append(mesh)
         print(f'add mesh: {len(self.meshes)}')
 
-    def get_mesh(self, attr: List[GVertexAttribute], id: str = None) -> GMesh:
+    def get_mesh(self, attr: List[GVertexAttribute], id: str, has_shape: bool) -> GMesh:
         for m in self.meshes:
-            if (m.id == id and m.attributes == attr):
+            if (has_shape and m.id == id) or (not has_shape and m.attributes == attr):
                 return m
         return None
 
