@@ -10,7 +10,7 @@ from typing import Any, List
 import shutil
 
 from .model import G3dModel, GShape
-from .generator import G3dGenerator
+from .generator import G3dBuilder
 from . import g3dj_encoder
 from . import g3db_encoder
 
@@ -90,9 +90,15 @@ class BaseG3dExportOperator(ExportHelper):
     )
 
     max_bones_per_vertex: IntProperty(
-        name="Max bones",
+        name="Vertex bones",
         description="Max bones per single vertex",
         default=4,
+    )
+
+    max_bones_per_nodepart: IntProperty(
+        name="Nodepart bones",
+        description="Max bones per single nodepart. The recomended value is vertex_bones * 3",
+        default=12,
     )
 
     add_bone_tip: BoolProperty(
@@ -191,10 +197,13 @@ class BaseG3dExportOperator(ExportHelper):
         box.row().prop(operator, "use_armature")
         row = box.row()
         row.enabled = self.use_armature
+        row.prop(operator, "add_bone_tip")
+        row = box.row()
+        row.enabled = self.use_armature
         row.prop(operator, "max_bones_per_vertex")
         row = box.row()
         row.enabled = self.use_armature
-        row.prop(operator, "add_bone_tip")
+        row.prop(operator, "max_bones_per_nodepart")
 
         # animation
         box = layout.box()
@@ -275,7 +284,7 @@ class BaseG3dExportOperator(ExportHelper):
     def execute(self, context):
         """called by blender"""
 
-        gen = G3dGenerator()
+        gen = G3dBuilder()
         gen.y_up = self.y_up
         gen.use_normal = self.use_normal
         gen.use_color = self.use_color
@@ -286,6 +295,7 @@ class BaseG3dExportOperator(ExportHelper):
         gen.flip_uv = self.flip_uv
         gen.use_armature = self.use_armature
         gen.max_bones_per_vertex = self.max_bones_per_vertex
+        gen.max_bones_per_nodepart = self.max_bones_per_nodepart
         gen.use_shapekeys = self.use_shapekeys
         gen.use_actions = self.use_actions
         gen.add_bone_tip = self.add_bone_tip
@@ -323,7 +333,7 @@ class BaseG3dExportOperator(ExportHelper):
         dst_dir =  source_dir / "textures"
         dst_dir.mkdir(exist_ok=True)
 
-        for mat in model.materials:
+        for mat in model.materials.values():
             for tex in mat.textures:
                 img = tex.source 
                 dst = dst_dir / tex.filename

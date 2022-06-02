@@ -1,9 +1,10 @@
 # <pep8 compliant>
 
+import collections
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List, OrderedDict, Set, Iterable
 
 from .common import *
 
@@ -70,23 +71,28 @@ class GMesh(object):
         self.attributes: List[GVertexAttribute] = attributes
         self.vertices: List[List[float]] = list()
         self.vertex_index: Dict[int, int] = dict()  # vertex hash -> vertex index
-        self.parts: List[GMeshPart] = list()
+        self.parts: OrderedDict[str, GMeshPart] = collections.OrderedDict()
         self.id: bool = id
 
-    def get_mesh_part(self, name: str):
-        for p in self.parts:
-            if (p.id == name):
-                return p
-        return None
+
+    def add_part(self, part: GMeshPart) -> GMeshPart:
+        self.parts[part.id] = part
+        return part
+
+
+    def get_meshpart(self, id: str):
+        return self.parts.get(id, None)
+
 
     def vertex_size(self):
         return sum(attr.length for attr in self.attributes)
+
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['attributes'] = self.attributes
         root['vertices'] = flatten(self.vertices)
-        root['parts'] = self.parts
+        root['parts'] = list(self.parts.values())
         return root
 
 
@@ -109,9 +115,8 @@ class GTexture(object):
 
 
 class GMaterial(object):
-    def __init__(self, id: str, index: int):
+    def __init__(self, id: str):
         self.id: str = id
-        self.index = index
         self.diffuse: List[float] = None
         self.ambient: List[float] = None
         self.emissive: List[float] = None
@@ -145,14 +150,19 @@ class GMaterial(object):
 class GBoneMatrix(object):
     """represents node part bone"""
 
-    def __init__(self, node: str, index: int, matrix: Matrix):
-        self.node: str = node
+    def __init__(self, id: str, matrix: Matrix):
+        self.id: str = id
         self.matrix: Matrix = matrix
-        self.index: int = index
+        self.index: int = None
+
+
+    def __str__(self) -> str:
+        return self.id
+
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
-        root['node'] = self.node
+        root['node'] = self.id
         root['translation'] = conv_vec(self.matrix.to_translation(), 0.0)
         root['rotation'] = conv_quat(self.matrix.to_quaternion())
         root['scale'] = conv_vec(self.matrix.to_scale(), 0.0)
@@ -165,21 +175,25 @@ class GNodePart(object):
     def __init__(self, materialid: str, meshpartid: str):
         self.meshpartid: str = meshpartid
         self.materialid: str = materialid
-        self.bones: List[GBoneMatrix] = []
+        self.bones: OrderedDict[str, GBoneMatrix] = collections.OrderedDict()
         self.uvMapping = [[]]  # TODO what is this for???
 
-    def get_bone(self, name: str) -> GBoneMatrix:
-        for b in self.bones:
-            if (b.node == name):
-                return b
-        return None
+
+    def add_bone(self, bone: GBoneMatrix) -> GBoneMatrix:
+        bone.index = len(self.bones)
+        self.bones[bone.id] = bone
+
+
+    def get_bone(self, id: str) -> GBoneMatrix:
+        return self.bones.get(id, None)
+
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['meshpartid'] = self.meshpartid
         root['materialid'] = self.materialid
         if (len(self.bones) > 0):
-            root['bones'] = self.bones
+            root['bones'] = list(self.bones.values())
         root['uvMapping'] = self.uvMapping
         return root
 
@@ -207,6 +221,7 @@ class GNode(object):
         self.scale: Vector = s
         self.translation: Vector = t
         self.rotation: Quaternion = r
+
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
