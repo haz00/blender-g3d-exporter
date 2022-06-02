@@ -112,8 +112,16 @@ class BaseG3dExportOperator(ExportHelper):
 
     copy_textures: BoolProperty(
         name="Copy textures",
-        description="Copy associated textures to textures/ subfolder",
+        description="Copy or unpack associated textures to textures/ subfolder and update model path to it",
         default=False,
+    )
+
+    copy_texture_strategy: EnumProperty(
+        name="Strategy",
+        default='RESPECT',
+        items=(
+            ('RESPECT', 'Respect', 'Keep file if exists (update paths only), create if not'),
+            ('OVERWRITE', 'Overwrite', 'Always overwirte file'))
     )
 
     fps: IntProperty(
@@ -189,6 +197,11 @@ class BaseG3dExportOperator(ExportHelper):
             for tex in mat.textures:
                 img = tex.source 
                 dst = dst_dir / tex.filename
+                tex.filename = f"textures/{tex.filename}"
+
+                if self.copy_texture_strategy == 'RESPECT' and dst.exists():
+                    continue
+
                 print(f"copy texture {tex.id} to {dst}")
 
                 if img.packed_file == None:
@@ -196,8 +209,7 @@ class BaseG3dExportOperator(ExportHelper):
                 else:
                     with open(dst, 'wb') as f:
                         f.write(img.packed_file.data)
-                    
-                tex.filename = f"textures/{tex.filename}"
+                
 
 
 class G3djExportOperator(Operator, BaseG3dExportOperator):
