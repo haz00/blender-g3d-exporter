@@ -39,13 +39,13 @@ classes = [
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    export_operator.register_menu()
+    export_operator.register()
 
 
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    export_operator.unregister_menu()
+    export_operator.unregister()
 
 
 if __name__ == "__main__":
