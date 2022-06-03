@@ -198,7 +198,7 @@ class BaseG3dExportOperator(ExportHelper):
 
         # animation
         box = layout.box()
-        box.label(text = "Animation")
+        box.label(text = "Armature")
         box.row().prop(operator, "use_actions")
         
         row = box.row()
