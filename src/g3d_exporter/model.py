@@ -172,9 +172,9 @@ class GBoneMatrix(object):
 class GNodePart(object):
     """node part binds mesh part and material"""
 
-    def __init__(self, materialid: str, meshpartid: str):
-        self.meshpartid: str = meshpartid
-        self.materialid: str = materialid
+    def __init__(self, material: GMaterial, meshpart: GMeshPart):
+        self.meshpart = meshpart
+        self.material = material
         self.bones: OrderedDict[str, GBoneMatrix] = collections.OrderedDict()
         self.uvMapping = [[]]  # TODO what is this for???
 
@@ -190,8 +190,8 @@ class GNodePart(object):
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
-        root['meshpartid'] = self.meshpartid
-        root['materialid'] = self.materialid
+        root['meshpartid'] = self.meshpart.id
+        root['materialid'] = self.material.id
         if (len(self.bones) > 0):
             root['bones'] = list(self.bones.values())
         root['uvMapping'] = self.uvMapping
@@ -278,7 +278,7 @@ class G3dModel(object):
         self.version = [0, 1]
         self.id: str = ""
         self.meshes: List[GMesh] = []
-        self.materials: List[GMaterial] = []
+        self.materials: Dict[str, GMaterial] = dict()
         self.nodes: List[GNode] = []
         self.animations: List[GAnimation] = []
         self.shapes: List[GShape] = []
@@ -287,24 +287,24 @@ class G3dModel(object):
         self.meshes.append(mesh)
         print(f'add mesh: {len(self.meshes)}')
 
+
     def get_mesh(self, attr: List[GVertexAttribute], id: str, has_shape: bool) -> GMesh:
         for m in self.meshes:
             if (has_shape and m.id == id) or (not has_shape and m.attributes == attr):
                 return m
         return None
 
+
     def get_material(self, id: str) -> GMaterial:
-        for e in self.materials:
-            if (e.id == id):
-                return e
-        return None
+        return self.materials.get(id, None)
+
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['version'] = self.version
         root['id'] = self.id
         root['meshes'] = self.meshes
-        root['materials'] = self.materials
+        root['materials'] = list(self.materials.values())
         root['nodes'] = self.nodes
         root['animations'] = self.animations
         # shapekeys encodes separetly

@@ -42,7 +42,7 @@ class G3dBuilder(object):
         if gmat == None:
             gmat = GMaterial(mat.name)
             self.setup_principled(gmat, PrincipledBSDFWrapper(mat, is_readonly=True))
-            model.materials.append(gmat)
+            model.materials[gmat.id] = gmat
             print(f'add material: {gmat.id}')
 
         return gmat
@@ -407,6 +407,7 @@ class GMeshBuilder(object):
         self.max_blendweights: int = 0
         self.shape: GShape = None
         self.attributes: List[GVertexAttribute] = self._setup_attributes()
+        self.meshparts_completed: Set[str] = set()
 
 
     def _setup_attributes(self) -> List[GVertexAttribute]:
@@ -475,17 +476,20 @@ class GMeshBuilder(object):
 
 
     def _populate_bones(self, nodepart: GNodePart, bones: Set[str]):
+        if not bones:
+            return
+
         for name in bones:
             if not nodepart.get_bone(name):
                 bone = self.armature.data.bones[name]
                 nodepart.add_bone(GBoneMatrix(name, bone.matrix_local))
 
 
-    def _find_nodepart(self, mat_id: str, bones: Set[str] = None) -> GNodePart:
+    def _find_nodepart(self, mat: GMaterial, bones: Set[str] = None) -> GNodePart:
         # seach nodepart by material, create new if not found
         for nodepart in self.node.parts:
             
-            if nodepart.materialid != mat_id:
+            if nodepart.material.id != mat.id:
                 continue
 
             if not bones:
@@ -515,30 +519,36 @@ class GMeshBuilder(object):
         return bones
 
 
-    def populate_mesh(self, mesh: GMesh):        
+    def populate_mesh(self, mesh: GMesh):   
+        new_meshparts = set()
+
         for polygon in self.final_mesh.polygons:
             
-            matertial = self.node.source.material_slots[polygon.material_index].material
-
-            self.opt.add_material(self.model, matertial)
+            bmat = self.node.source.material_slots[polygon.material_index].material
+            gmat = self.opt.add_material(self.model, bmat)
 
             face = self._build_face(polygon)
-
             uniq_bones = self._find_uniq_bones(face) if (self.armature) else None
 
-            nodepart = self._find_nodepart(matertial.name, uniq_bones)
+            nodepart = self._find_nodepart(gmat, uniq_bones)
             if not nodepart:
                 # TODO what with linked mesh?
                 meshpartid = f"{self.node.source.data.name}_part{len(self.node.parts)}"
-                nodepart = GNodePart(matertial.name, meshpartid) 
+
+                # create meshpart if needed
+                meshpart = mesh.get_meshpart(meshpartid)
+                if not meshpart:
+                    meshpart = mesh.add_part(GMeshPart(meshpartid, self.opt.primitive_type))
+                    new_meshparts.add(meshpartid)
+                    
+                nodepart = GNodePart(gmat, meshpart) 
                 self._populate_bones(nodepart, uniq_bones)
                 self.node.parts.append(nodepart)
+            
+            if nodepart.meshpart.id in self.meshparts_completed:
+                continue
 
-            # get meshpart from nodepart
-            meshpart = mesh.get_meshpart(nodepart.meshpartid)
-            if not meshpart:
-                meshpart = mesh.add_part(GMeshPart(nodepart.meshpartid, self.opt.primitive_type))
-
+            # populate mesh and mesh part
             for vert in face:
                 # update bone indexes in blendweights by group name
                 if vert.blendweights:
@@ -559,9 +569,11 @@ class GMeshBuilder(object):
                             shape_key.positions.append(key_vert.co)
 
                 vert_index = mesh.vertex_index[vhash]
-                meshpart.indices.append(vert_index)
+                nodepart.meshpart.indices.append(vert_index)
 
-    
+        self.meshparts_completed.update(new_meshparts)
+
+
     def _norm_blendweights(self, blendweights: List[GVertexBlendweightBuilder]):
         total = sum(b.weight for b in blendweights)
         
