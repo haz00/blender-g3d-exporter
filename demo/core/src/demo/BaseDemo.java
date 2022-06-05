@@ -2,6 +2,7 @@ package demo;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.Color;
@@ -21,11 +22,8 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import com.haz00.g3dmodelshape.ModelShape;
-import com.haz00.g3dmodelshape.ModelShapeLoader;
 
 import static com.badlogic.gdx.graphics.VertexAttributes.Usage.ColorPacked;
 import static com.badlogic.gdx.graphics.VertexAttributes.Usage.Position;
@@ -65,11 +63,11 @@ public abstract class BaseDemo extends ApplicationAdapter {
     ModelInstance xyzBone;
     Model boneModel;
     ModelInstance bone;
+    boolean skeletonVisible = true;
 
     @Override
     public void create() {
         assets = new AssetManager();
-        assets.setLoader(ModelShape.class, ".shapes", new ModelShapeLoader(assets.getFileHandleResolver(), new JsonReader()));
 
         font = new BitmapFont();
 
@@ -126,6 +124,9 @@ public abstract class BaseDemo extends ApplicationAdapter {
         totalTime += Gdx.graphics.getDeltaTime();
         camCtl.update();
 
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
+            skeletonVisible = !skeletonVisible;
+
         ScreenUtils.clear(0.95f, 0.95f, 0.95f, 1, true);
 
         modelBatch.begin(cam);
@@ -141,7 +142,10 @@ public abstract class BaseDemo extends ApplicationAdapter {
     abstract void renderDemo();
 
     void renderSkeleton(Node armature, boolean bones, boolean axes, boolean names, boolean relations) {
-        // hardcode implemented for this demo purposes only
+        // ugly hardcode implemented for this demo purposes only
+
+        if (!skeletonVisible)
+            return;
 
         Gdx.gl.glClear(GL20.GL_DEPTH_BUFFER_BIT);
 

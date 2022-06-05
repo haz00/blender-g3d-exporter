@@ -6,8 +6,10 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
+import com.badlogic.gdx.utils.JsonReader;
 import com.haz00.g3dmodelshape.ModelShape;
 import com.haz00.g3dmodelshape.MeshShape;
+import com.haz00.g3dmodelshape.ModelShapeLoader;
 
 public class DemoImpl extends BaseDemo {
 
@@ -20,6 +22,7 @@ public class DemoImpl extends BaseDemo {
     public void create() {
         super.create();
 
+        assets.setLoader(ModelShape.class, ".shapes", new ModelShapeLoader(assets.getFileHandleResolver(), new JsonReader()));
         assets.load("suzanne.g3db", Model.class);
         assets.load("suzanne.shapes", ModelShape.class);
         assets.finishLoading();
