@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, List
 import shutil
 
-from .model import G3dModel, GShape
+from .model import G3dError, G3dModel, GShape
 from .generator import G3dBuilder
 from . import g3dj_encoder
 from . import g3db_encoder
@@ -308,19 +308,23 @@ class BaseG3dExportOperator(ExportHelper):
         else:
             objects = list(bpy.data.objects)
 
-        model = gen.generate(objects)
-        out = Path(self.filepath)
+        try:
+            model = gen.generate(objects)
+            out = Path(self.filepath)
 
-        if self.copy_textures:
-            self._copy_textures(out.parent, model)
+            if self.copy_textures:
+                self._copy_textures(out.parent, model)
 
-        self.export_g3d(out, model)
+            self.export_g3d(out, model)
 
-        if self.use_shapekeys:
-            self.export_shapekeys(out, model.shapes)
+            if self.use_shapekeys:
+                self.export_shapekeys(out, model.shapes)
+
+        except G3dError as e:
+            self.report({'ERROR'}, str(e))
 
         return {'FINISHED'}
-
+            
 
     def _write(self, data, file: Path, flags='w'):
         with open(file, flags) as f:

@@ -309,3 +309,9 @@ class G3dModel(object):
         root['animations'] = self.animations
         # shapekeys encodes separetly
         return root
+
+
+class G3dError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        

@@ -27,6 +27,7 @@ class G3dBuilder(object):
         self.use_armature = True
         self.max_bones_per_vertex = 4
         self.max_bones_per_nodepart = 12
+        self.max_vertices = 32000
         self.use_shapekeys = True
         self.use_actions = True
         self.add_bone_tip = True
@@ -571,7 +572,17 @@ class GMeshBuilder(object):
                 vert_index = mesh.vertex_index[vhash]
                 nodepart.meshpart.indices.append(vert_index)
 
+            self.validate_mesh_limits(len(mesh.vertices), len(meshpart.indices))
+
         self.meshparts_completed.update(new_meshparts)
+
+
+    def validate_mesh_limits(self, verts, idx):
+        if verts < self.opt.max_vertices and idx < self.opt.max_vertices:
+            return
+
+        msg = f"Mesh limits exceeded ({self.opt.max_vertices}): Object: {self.final_object.name}, vertices: {verts}, indicies: {idx}"
+        raise G3dError(msg)
 
 
     def _norm_blendweights(self, blendweights: List[GVertexBlendweightBuilder]):
