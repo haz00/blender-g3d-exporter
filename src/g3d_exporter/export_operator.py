@@ -315,10 +315,12 @@ class BaseG3dExportOperator(ExportHelper):
             if self.copy_textures:
                 self._copy_textures(out.parent, model)
 
-            self.export_g3d(out, model)
+            writepath = self.export_g3d(out, model)
+            self.report({'INFO'}, f"Export to {writepath}")
 
             if self.use_shapekeys:
-                self.export_shapekeys(out, model.shapes)
+                writepath = self.export_shapekeys(out, model.shapes)
+                self.report({'INFO'}, f"Export to {writepath}")
 
         except G3dError as e:
             self.report({'ERROR'}, str(e))
@@ -326,10 +328,11 @@ class BaseG3dExportOperator(ExportHelper):
         return {'FINISHED'}
             
 
-    def _write(self, data, file: Path, flags='w'):
+    def _write(self, data, file: Path, flags='w') -> Path:
         with open(file, flags) as f:
             f.write(data)
             print('write', file.absolute())
+        return file
 
 
     def _copy_textures(self, source_dir: Path, model: G3dModel):
@@ -361,14 +364,14 @@ class G3djExportOperator(Operator, BaseG3dExportOperator):
     filename_ext = ".g3dj"
     bl_options = {'PRESET'}
 
-    def export_g3d(self, filepath: Path, model: G3dModel):
+    def export_g3d(self, filepath: Path, model: G3dModel) -> Path:
         data = g3dj_encoder.encode(model)
-        self._write(data, filepath.with_suffix('.g3dj'), 'w')
+        return self._write(data, filepath.with_suffix('.g3dj'), 'w')
 
 
-    def export_shapekeys(self, filepath: Path, shapes: List[GShape]):
+    def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
         data = g3dj_encoder.encode({"shapes": shapes})
-        self._write(data, filepath.with_suffix(".shapes"), 'w')
+        return self._write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 class G3dbExportOperator(Operator, BaseG3dExportOperator):
@@ -378,15 +381,15 @@ class G3dbExportOperator(Operator, BaseG3dExportOperator):
     bl_options = {'PRESET'}
 
 
-    def export_g3d(self, filepath: Path, model: G3dModel):
+    def export_g3d(self, filepath: Path, model: G3dModel) -> Path:
         data = g3db_encoder.encode(model)
-        self._write(data, filepath.with_suffix('.g3db'), 'wb')
+        return self._write(data, filepath.with_suffix('.g3db'), 'wb')
 
 
-    def export_shapekeys(self, filepath: Path, shapes: List[GShape]):
+    def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
         # TODO binary too
         data = g3dj_encoder.encode({"shapes": shapes})
-        self._write(data, filepath.with_suffix(".shapes"), 'w')
+        return self._write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 def menu_func_export(self, context):

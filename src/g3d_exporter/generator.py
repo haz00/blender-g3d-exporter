@@ -12,7 +12,6 @@ import os
 from .model import *
 from .common import *
 
-
 class G3dBuilder(object):
 
     def __init__(self) -> None:
@@ -53,7 +52,7 @@ class G3dBuilder(object):
         print(f'generate mesh node: {obj.name}')
         
         if (len(obj.material_slots) == 0):
-            raise ValueError(f'{obj.name} has no materials')
+            raise G3dError(f'{obj.name} has no materials')
 
         (final_obj, final_mesh) = self.evaluate(obj, self.apply_modifiers)
         
@@ -581,7 +580,7 @@ class GMeshBuilder(object):
         if verts < self.opt.max_vertices and idx < self.opt.max_vertices:
             return
 
-        msg = f"Mesh limits exceeded ({self.opt.max_vertices}): Object: {self.final_object.name}, vertices: {verts}, indicies: {idx}"
+        msg = f"Mesh limits exceeded ({self.opt.max_vertices}): vertices: {verts}, indicies: {idx}"
         raise G3dError(msg)
 
 
@@ -708,3 +707,4 @@ class BoneAction(object):
         for curve in curves: 
             into[curve.array_index] = curve.evaluate(frame)
         return into
+
