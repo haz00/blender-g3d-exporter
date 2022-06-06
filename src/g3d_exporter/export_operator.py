@@ -215,76 +215,15 @@ class BaseG3dExportOperator(ExportHelper):
         row.prop(operator, "fps")
 
 
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        sfile = context.space_data
-        operator = sfile.active_operator
-
-        layout.row().prop(operator, "selected_only")
-        layout.row().prop(operator, "apply_modifiers")
-        layout.row().prop(operator, "y_up")
-
-        # mesh attributes
-        box = layout.box()
-        box.label(text = "Mesh")
-        box.row().prop(operator, "use_normal")
-
-        row = box.row()
-        row.prop(operator, "use_color")
-
-        sub = row.row()
-        sub.enabled = self.use_color
-        sub.prop(operator, "packed_color", text="", icon='UGLYPACKAGE')
-
-        box.row().prop(operator, "use_tangent")
-        box.row().prop(operator, "use_binormal")
-
-        row = box.row()
-        row.prop(operator, "use_uv")
-
-        sub = row.row()
-        sub.enabled = self.use_uv
-        sub.prop(operator, "flip_uv", text="", icon='MOD_MIRROR')
-
-        box.row().prop(operator, "use_shapekeys")
-        box.row().prop(operator, "primitive_type")
-
-        # material
-        box = layout.box()
-        box.label(text = "Material")
-        box.row().prop(operator, "copy_textures")
-        
-        row = box.row()
-        row.enabled = self.copy_textures
-        row.prop(operator, "copy_texture_strategy")
-
-        # armature
-        box = layout.box()
-        box.label(text = "Armature")
-        box.row().prop(operator, "use_armature")
-        row = box.row()
-        row.enabled = self.use_armature
-        row.prop(operator, "max_bones_per_vertex")
-        row = box.row()
-        row.enabled = self.use_armature
-        row.prop(operator, "add_bone_tip")
-
-        # animation
-        box = layout.box()
-        box.label(text = "Animation")
-        box.row().prop(operator, "use_actions")
-        
-        row = box.row()
-        row.enabled = self.use_actions 
-        row.prop(operator, "fps")
-
-
     def execute(self, context):
         """called by blender"""
 
-        gen = G3dBuilder()
+        if self.selected_only:
+            candidates = bpy.context.selected_objects
+        else:
+            candidates = list(bpy.data.objects)
+
+        gen = G3dBuilder(candidates)
         gen.y_up = self.y_up
         gen.use_normal = self.use_normal
         gen.use_color = self.use_color
@@ -303,13 +242,8 @@ class BaseG3dExportOperator(ExportHelper):
         gen.fps = self.fps
         gen.primitive_type = self.primitive_type
 
-        if self.selected_only:
-            objects = bpy.context.selected_objects
-        else:
-            objects = list(bpy.data.objects)
-
         try:
-            model = gen.generate(objects)
+            model = gen.generate()
             out = Path(self.filepath)
 
             if self.copy_textures:

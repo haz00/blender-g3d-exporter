@@ -14,7 +14,9 @@ from .common import *
 
 class G3dBuilder(object):
 
-    def __init__(self) -> None:
+    def __init__(self, candidates: List[bpy.types.Object]) -> None:
+        self.candidates = candidates
+        self.model = G3dModel()
         self.y_up = True
         self.use_normal = True
         self.use_color = True
@@ -36,19 +38,19 @@ class G3dBuilder(object):
         self._flat_nodes: Dict[str, GNode] = dict()
 
 
-    def add_material(self, model: G3dModel, mat: bpy.types.Material) -> GMaterial:
-        gmat = model.get_material(mat.name)
+    def add_material(self, mat: bpy.types.Material) -> GMaterial:
+        gmat = self.model.get_material(mat.name)
 
         if gmat == None:
             gmat = GMaterial(mat.name)
             self.setup_principled(gmat, PrincipledBSDFWrapper(mat, is_readonly=True))
-            model.materials[gmat.id] = gmat
+            self.model.materials[gmat.id] = gmat
             print(f'add material: {gmat.id}')
 
         return gmat
 
 
-    def handle_mesh_node(self, obj: bpy.types.Object, model: G3dModel, armature: bpy.types.Object):
+    def handle_mesh_node(self, obj: bpy.types.Object, armature: bpy.types.Object):
         print(f'generate mesh node: {obj.name}')
         
         if (len(obj.material_slots) == 0):
@@ -58,17 +60,17 @@ class G3dBuilder(object):
         
         node = self.add_node(obj)
 
-        builder = GMeshBuilder(self, model, node, armature, final_obj, final_mesh)
+        builder = GMeshBuilder(self, node, armature, final_obj, final_mesh)
 
-        mesh = model.get_mesh(builder.attributes, obj.data.name, builder.shape != None)
+        mesh = self.model.get_mesh(builder.attributes, obj.data.name, builder.shape != None)
 
         if (mesh == None):
             mesh = GMesh(builder.attributes, obj.data.name)
-            model.add_mesh(mesh)
+            self.model.add_mesh(mesh)
 
             if (builder.shape != None):
                 print(f"add shapekeys: {builder.shape.id}")
-                model.shapes.append(builder.shape)
+                self.model.shapes.append(builder.shape)
 
         builder.populate_mesh(mesh)
 
@@ -80,14 +82,14 @@ class G3dBuilder(object):
         return node
 
 
-    def handle_armature_node(self, obj: bpy.types.Object, model: G3dModel):
+    def handle_armature_node(self, obj: bpy.types.Object):
         print(f'generate armature node: {obj.name}')
 
         node = self.add_node(obj)
         self.create_armature_tree(node)
 
         if (self.use_actions):
-            self.handle_armature_animations(node, model)
+            self.handle_armature_animations(node)
 
 
     def create_armature_tree(self, node: GNode):
@@ -100,7 +102,7 @@ class G3dBuilder(object):
                 node.children.append(child)
 
 
-    def handle_armature_animations(self, node: GNode, model: G3dModel):
+    def handle_armature_animations(self, node: GNode):
         for action in bpy.data.actions:
             if action.users == 0:
                 continue
@@ -115,7 +117,7 @@ class G3dBuilder(object):
 
             if (len(anim.bones) > 0):
                 print(f"add animation: {anim.id}")
-                model.animations.append(anim)
+                self.model.animations.append(anim)
 
 
     def create_armature_bones_recusvively(self, bone: bpy.types.Bone, add_tip: bool):
@@ -192,44 +194,59 @@ class G3dBuilder(object):
         return anim_bone
 
 
-    def generate(self, objects: List[bpy.types.Object]) -> G3dModel:
-        print(f'generate: objects count: {len(objects)}')
-        
-        model = G3dModel()
+    def generate(self) -> G3dModel:
+        print(f'generate: candidates count: {len(self.candidates)}')
 
-        for obj in objects:
+        for obj in self.candidates:
+            self._handle_candidate(obj)
 
-            if (not obj.visible_get()):
-                print(f"skip not visible: {obj.name}")
-                continue
+        self.resolve_nodes_tree()
 
-            obj.update_from_editmode()
-
-            if (obj.type == 'ARMATURE'):
-                if (self.use_armature):
-                    self.handle_armature_node(obj, model)
-
-            elif (obj.type == 'MESH'):
-                armature: bpy.types.Object = None
-
-                # ensure the attached armature (last modifier) is also in export list - blendweights requirements 
-                if self.use_armature and obj.find_armature() in objects:
-                    armature = obj.find_armature()
-
-                self.handle_mesh_node(obj, model, armature)
-
-            else:
-                print(f'not supported export type for {obj.name}: {obj.type}')
-
-        self.resolve_nodes_tree(model)
-
-        if (self.y_up):
+        if self.y_up:
             # rotate root nodes
-            self.conv_rotation(model.nodes, Quaternion([-0.707107, 0.707107, 0.000000,  0.000000]))
+            self.conv_rotation(Quaternion([-0.707107, 0.707107, 0.000000,  0.000000]))
 
         print('generated')
-        return model
+        return self.model
     
+
+    def _handle_candidate(self, obj: bpy.types.Object):
+        if not obj.visible_get():
+            print(f"skip not visible: {obj.name}")
+            return
+
+        obj.update_from_editmode()
+
+        if obj.type == 'ARMATURE':
+            if (self.use_armature):
+                self.handle_armature_node(obj)
+
+        elif obj.type == 'MESH':
+            armature = self.get_attached_armature(obj)
+
+            self.handle_mesh_node(obj, armature)
+
+        elif obj.instance_collection != None:
+            # if collection instance
+                # obj.instance_collection.all_objects
+                # TODO collection instance
+            pass
+
+        else:
+            print(f'not supported export type for {obj.name}: {obj.type}')
+
+
+    def get_attached_armature(self, obj: bpy.types.Object) -> bpy.types.Object:
+        """
+        Ensures that the attached armature is also in export list to able find optimal blendweights count
+        """
+        if self.use_armature:
+            exist = obj.find_armature()
+            if exist and exist.visible_get() and exist in self.candidates:
+                return exist
+        return None
+
+
 
     def tringalute(self, mesh: bpy.types.Mesh):
         bm = bmesh.new()
@@ -260,15 +277,14 @@ class G3dBuilder(object):
         return (obj, mesh)
 
 
-    def conv_rotation(self, nodes: List[GNode], rot: Quaternion):
-        for root in nodes:
+    def conv_rotation(self, rot: Quaternion):
+        for root in self.model.nodes:
             root.rotation = rot @ root.rotation 
             root.translation = rot @ root.translation 
 
 
-    def resolve_nodes_tree(self, model: G3dModel):
+    def resolve_nodes_tree(self):
         """assotiate parent-child node relations"""
-
         for k in self._flat_nodes:
             node = self._flat_nodes[k]
 
@@ -289,7 +305,7 @@ class G3dBuilder(object):
         for k in self._flat_nodes:
             node = self._flat_nodes[k]
             if (node.parent == None):
-                model.nodes.append(node)
+                self.model.nodes.append(node)
         
         self._flat_nodes.clear()
 
@@ -395,10 +411,9 @@ class GVertexBuilder(object):
 
 class GMeshBuilder(object):
     """populates mesh by specified scene object"""
-    def __init__(self, opt: G3dBuilder, model: G3dModel, node: GNode, armature: bpy.types.Object, final_object: bpy.types.Object, final_mesh: bpy.types.Mesh):
+    def __init__(self, opt: G3dBuilder, node: GNode, armature: bpy.types.Object, final_object: bpy.types.Object, final_mesh: bpy.types.Mesh):
         self.opt = opt
         self.node = node
-        self.model = model
         self.final_object = final_object
         self.final_mesh = final_mesh
         self.color_layer: bpy.types.MeshLoopColorLayer = None
@@ -525,7 +540,7 @@ class GMeshBuilder(object):
         for polygon in self.final_mesh.polygons:
             
             bmat = self.node.source.material_slots[polygon.material_index].material
-            gmat = self.opt.add_material(self.model, bmat)
+            gmat = self.opt.add_material(bmat)
 
             face = self._build_face(polygon)
             uniq_bones = self._find_uniq_bones(face) if (self.armature) else None
