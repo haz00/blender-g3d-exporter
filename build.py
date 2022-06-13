@@ -48,7 +48,17 @@ def uninstall():
 
 
 def export_zip() -> Path:
-    return Path(shutil.make_archive(str(build_path / addon_package), 'zip', source_dir))
+    src_dst = build_path / "tmp" / addon_package
+    src_dst.mkdir(exist_ok=True, parents=True)
+
+    print(f"copy to {src_dst}")
+    shutil.copytree(source_dir, src_dst, dirs_exist_ok=True)
+
+    print(f"clean to {src_dst}")
+    dst = Path(shutil.make_archive(str(build_path / addon_package), 'zip', src_dst.parent))
+    shutil.rmtree(src_dst.parent)
+
+    return dst
 
 
 def sign(src: Path):
