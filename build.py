@@ -1,41 +1,54 @@
+"""
+cli commands:
+    - install
+    - uninstall
+    - zip
+    - test "blender_exe_path"
+"""
+
 import hashlib
+import subprocess
 import sys
 import os
 from pathlib import Path
 import shutil
 
-addon_id = 'g3d_exporter'
-source_dir = Path("src")
+addon_package = 'g3d_exporter'
+source_dir = Path("g3d_exporter")
 build_path = Path("build")
+
 appdata_path = Path(os.getenv("APPDATA"))
 
 blender_addon_paths = [
-    appdata_path / "Blender Foundation" / "Blender" / "2.83" / "scripts" / "addons",  # lts
-    appdata_path / "Blender Foundation" / "Blender" / "2.93" / "scripts" / "addons",  # lts
-    appdata_path / "Blender Foundation" / "Blender" / "3.0" / "scripts" / "addons",
-    appdata_path / "Blender Foundation" / "Blender" / "3.1" / "scripts" / "addons",
+    appdata_path / "Blender Foundation/Blender/2.83/scripts/addons",  # lts
+    appdata_path / "Blender Foundation/Blender/2.93/scripts/addons",  # lts
+    appdata_path / "Blender Foundation/Blender/3.0/scripts/addons",
+    appdata_path / "Blender Foundation/Blender/3.1/scripts/addons",
 ]
 
 
 def install():
     for addons_path in blender_addon_paths:
-        print(f"install to {addons_path}")
 
-        if (addons_path.exists()):
-            shutil.copytree(source_dir, addons_path, dirs_exist_ok=True)
+        if addons_path.exists():
+            dst = addons_path / addon_package
+            dst.mkdir(exist_ok=True)
+
+            print(f"install to {dst}")
+            shutil.copytree(source_dir, dst, dirs_exist_ok=True)
 
 
-def clean():
+def uninstall():
     for addons_path in blender_addon_paths:
-        addon_home = addons_path / addon_id
-        print(f"clean {addon_home}")
+        addon_home = addons_path / addon_package
+        print(f"uninstall {addon_home}")
 
-        if (addon_home.exists()):
+        if addon_home.exists():
             shutil.rmtree(addon_home)
 
 
-def zip() -> Path:
-    return Path(shutil.make_archive(build_path / addon_id, 'zip', source_dir))
+def export_zip() -> Path:
+    return Path(shutil.make_archive(str(build_path / addon_package), 'zip', source_dir))
 
 
 def sign(src: Path):
@@ -51,14 +64,34 @@ def sign(src: Path):
             f.write('\nSHA1:\t' + sha1)
 
 
-if (__name__ == "__main__"):
+def run_tests(blend_exe: str):
+    script = "tests/runner.py"
+    subprocess.run([blend_exe, "--factory-startup", "--background", "-noaudio", "--python", script])
+
+
+def export_demo(blend_exe: str):
+    blend_file = "demo/demo.blend"
+    script = "demo/export_script.py"
+    print(f"build demo {blend_file}")
+    subprocess.run([blend_exe, blend_file, "--factory-startup", "--background", "-noaudio", "--python", script])
+
+
+if __name__ == "__main__":
+    import platform
+    if platform.system() != "Windows":
+        raise ValueError(f"Host system does not supported by builder: {platform.system()}")
+
     cmd = sys.argv[1]
 
-    if (cmd == "install"):
+    if cmd == "install":
         install()
-    elif (cmd == "zip"):
-        sign(zip())
-    elif (cmd == "clean"):
-        clean()
+    elif cmd == "zip":
+        sign(export_zip())
+    elif cmd == "uninstall":
+        uninstall()
+    elif cmd == "test":
+        run_tests(sys.argv[2])
+    elif cmd == "demo":
+        export_demo(sys.argv[2])
     else:
         raise ValueError(cmd)

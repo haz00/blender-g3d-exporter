@@ -10,12 +10,9 @@ The demo folder contains LibGDX project with examples.
 - Vertex attributes customization
 - Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
-Note that LibGDX default shader does not handle normal mapping and other rich PRB features out of the box. The addon can export such attributes though. You should provide your own shader if you need it.
-
-# Usage
-### Installation
+# Installation
 1. [Download](https://github.com/haz00/blender-g3d-exporter/releases/latest)
-2. Blender: Preferrences - Addons - Install
+2. Blender: Preferences - Addons - Install
 3. Do not forget to enable checkbox
 4. File - Export - .g3dj/.g3db
 5. Follow addon settings

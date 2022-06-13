@@ -1,21 +1,22 @@
 # <pep8 compliant>
 
-import collections
 import bpy
-from mathutils import Matrix, Quaternion, Vector
 
-from typing import Any, Dict, Iterable, List, OrderedDict, Set, Iterable
+from typing import Dict, Tuple
 
-from .common import *
+from g3d_exporter.common import *
 
 
 class GShape(object):
     """represents blender 'Shape Keys' panel"""
-
-    def __init__(self, id: str, source: bpy.types.Key):
+    def __init__(self, id: str, shape_key: bpy.types.Key):
         self.id: str = id
         self.keys: List[GShapeKey] = []
-        self.source: bpy.types.Key = source
+        self.shape_key: bpy.types.Key = shape_key
+
+        # initialize shape key slots
+        for block in shape_key.key_blocks:
+            self.keys.append(GShapeKey(block.name, block))
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
@@ -27,15 +28,15 @@ class GShape(object):
 class GShapeKey(object):
     """represents one slot in 'Shape Keys' panel"""
 
-    def __init__(self, name: str, source):
+    def __init__(self, name: str, block: bpy.types.ShapeKey):
         self.name = name
-        self.source = source
-        self.positions: List[List[float]] = []
+        self.block = block
+        self.positions: List[float] = list()
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['name'] = self.name
-        root['positions'] = flatten(self.positions)
+        root['positions'] = self.positions
         return root
 
 
@@ -53,7 +54,7 @@ class GMeshPart(object):
         return result
 
 
-class GVertexAttribute(object):
+class VertexFlag(object):
     def __init__(self, name: str, length: int):
         self.name: str = name
         self.length: int = length
@@ -61,47 +62,42 @@ class GVertexAttribute(object):
     def __eq__(self, o: object) -> bool:
         return isinstance(o, type(self)) and o.name == self.name and o.length == self.length
 
+    def __hash__(self):
+        return hash((self.name, self.length))
+
+    def __str__(self):
+        return f"{self.name}/{self.length}"
+
 
 class GMesh(object):
     """
     mesh is unique for attributes flags and for meshes with shapekeys, all other blender meshes will be merged into single mesh
     """
-
-    def __init__(self, attributes: List[GVertexAttribute], id: str = None):
-        self.attributes: List[GVertexAttribute] = attributes
-        self.vertices: List[List[float]] = list()
-        self.vertex_index: Dict[int, int] = dict()  # vertex hash -> vertex index
-        self.parts: OrderedDict[str, GMeshPart] = collections.OrderedDict()
-        self.id: bool = id
-
-
-    def add_part(self, part: GMeshPart) -> GMeshPart:
-        self.parts[part.id] = part
-        return part
-
-
-    def get_meshpart(self, id: str):
-        return self.parts.get(id, None)
-
+    def __init__(self, attributes: Tuple[VertexFlag]):
+        self.attributes: Tuple[VertexFlag] = attributes
+        self.vertices: List[float] = list()
+        self.parts: List[GMeshPart] = list()
 
     def vertex_size(self):
         return sum(attr.length for attr in self.attributes)
 
+    def vertex_count(self):
+        return int(len(self.vertices) / self.vertex_size())
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['attributes'] = self.attributes
-        root['vertices'] = flatten(self.vertices)
-        root['parts'] = list(self.parts.values())
+        root['vertices'] = self.vertices
+        root['parts'] = self.parts
         return root
 
 
 class GTexture(object):
-    def __init__(self, id: str, type: str, filename: str, source: bpy.types.Image):
+    def __init__(self, id: str, type: str, filename: str, image: bpy.types.Image):
         self.id: str = id
         self.type: str = type
         self.filename: str = filename
-        self.source: bpy.types.Image = source
+        self.image: bpy.types.Image = image
 
     def __str__(self) -> str:
         return f"GTexture({self.id}, {self.type}, {self.filename})"
@@ -117,52 +113,30 @@ class GTexture(object):
 class GMaterial(object):
     def __init__(self, id: str):
         self.id: str = id
-        self.diffuse: List[float] = None
-        self.ambient: List[float] = None
-        self.emissive: List[float] = None
-        self.specular: List[float] = None
-        self.reflection: List[float] = None
-        self.opacity: float = None
-        self.shininess: float = None
-        self.textures: List[GTexture] = []
+        self.attributes: Dict[str, Any] = dict()
+        self.textures: List[GTexture] = list()
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['id'] = self.id
-        if(self.diffuse != None):
-            root['diffuse'] = self.diffuse
-        if(self.ambient != None):
-            root['ambient'] = self.ambient
-        if(self.emissive != None):
-            root['emissive'] = self.emissive
-        if(self.specular != None):
-            root['specular'] = self.specular
-        if(self.opacity != None):
-            root['opacity'] = self.opacity
-        if(self.shininess != None):
-            root['shininess'] = self.shininess
-        if(self.reflection):
-            root['reflection'] = self.reflection
+        root.update(self.attributes)
         root['textures'] = self.textures
         return root
 
 
-class GBoneMatrix(object):
-    """represents node part bone"""
-
-    def __init__(self, id: str, matrix: Matrix):
-        self.id: str = id
+class BonePart(object):
+    """represents bone in node part"""
+    def __init__(self, name: str, matrix: Matrix, index: int) -> None:
+        self.name = name
         self.matrix: Matrix = matrix
-        self.index: int = None
-
+        self.index = index
 
     def __str__(self) -> str:
-        return self.id
-
+        return self.name
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
-        root['node'] = self.id
+        root['node'] = self.name
         root['translation'] = conv_vec(self.matrix.to_translation(), 0.0)
         root['rotation'] = conv_quat(self.matrix.to_quaternion())
         root['scale'] = conv_vec(self.matrix.to_scale(), 0.0)
@@ -171,57 +145,44 @@ class GBoneMatrix(object):
 
 class GNodePart(object):
     """node part binds mesh part and material"""
-
-    def __init__(self, material: GMaterial, meshpart: GMeshPart):
+    def __init__(self, material: str, meshpart: str):
         self.meshpart = meshpart
         self.material = material
-        self.bones: OrderedDict[str, GBoneMatrix] = collections.OrderedDict()
-        self.uvMapping = [[]]  # TODO what is this for???
-
-
-    def add_bone(self, bone: GBoneMatrix) -> GBoneMatrix:
-        bone.index = len(self.bones)
-        self.bones[bone.id] = bone
-
-
-    def get_bone(self, id: str) -> GBoneMatrix:
-        return self.bones.get(id, None)
-
+        self.bones: List[BonePart] = list()
+        self.uvMapping = [[]]  # TODO what is this for??? -_-
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
-        root['meshpartid'] = self.meshpart.id
-        root['materialid'] = self.material.id
-        if (len(self.bones) > 0):
-            root['bones'] = list(self.bones.values())
+        root['meshpartid'] = self.meshpart
+        root['materialid'] = self.material
+        if self.bones:
+            root['bones'] = self.bones
         root['uvMapping'] = self.uvMapping
         return root
 
 
 class GNode(object):
-    """represents blender scene object or armamature bones tree"""
-
-    def __init__(self, id: str, source: bpy.types.Object):
-        """
-        source - original blender object, can be None if node is armature bone
-        """
+    """represents blender scene object or armature bones tree"""
+    def __init__(self, id: str):
         self.id = id
         self.parts: List[GNodePart] = []
         self.children: List[GNode] = []
-        self.source: bpy.types.Object = source
         self.parent: GNode = None
+        self.scale: Vector = None
+        self.translation: Vector = None
+        self.rotation: Quaternion = None
 
-        mat: Matrix = source.matrix_world if (source) else Matrix.Identity(4)
+    def set_parent(self, parent):
+        if parent == self.parent:
+            return
 
-        if (source and source.parent):
-            mat = source.parent.matrix_world.inverted() @ mat
+        if self.parent:
+            self.parent.children.remove(self)
 
-        (t, r, s) = mat.decompose()
+        self.parent = parent
 
-        self.scale: Vector = s
-        self.translation: Vector = t
-        self.rotation: Quaternion = r
-
+        if self.parent:
+            self.parent.children.append(self)
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
@@ -230,7 +191,8 @@ class GNode(object):
         root['scale'] = conv_vec(self.scale)
         root['translation'] = conv_vec(self.translation)
         root['parts'] = self.parts
-        root['children'] = self.children
+        if self.children:
+            root['children'] = self.children
         return root
 
 
@@ -277,41 +239,19 @@ class G3dModel(object):
     def __init__(self) -> None:
         self.version = [0, 1]
         self.id: str = ""
-        self.meshes: List[GMesh] = []
-        self.materials: Dict[str, GMaterial] = dict()
-        self.nodes: List[GNode] = []
-        self.animations: List[GAnimation] = []
-        self.shapes: List[GShape] = []
-
-    def add_mesh(self, mesh: GMesh):
-        self.meshes.append(mesh)
-        print(f'add mesh: {len(self.meshes)}')
-
-
-    def get_mesh(self, attr: List[GVertexAttribute], id: str, has_shape: bool) -> GMesh:
-        for m in self.meshes:
-            if (has_shape and m.id == id) or (not has_shape and m.attributes == attr):
-                return m
-        return None
-
-
-    def get_material(self, id: str) -> GMaterial:
-        return self.materials.get(id, None)
-
+        self.meshes: List[GMesh] = list()
+        self.materials: List[GMaterial] = list()
+        self.nodes: List[GNode] = list()
+        self.animations: List[GAnimation] = list()
+        self.shapes: List[GShape] = list()
 
     def to_dict(self) -> Dict[str, Any]:
+        # note that shapekeys are not part of specification, so they encode separately
         root = dict()
         root['version'] = self.version
         root['id'] = self.id
         root['meshes'] = self.meshes
-        root['materials'] = list(self.materials.values())
+        root['materials'] = self.materials
         root['nodes'] = self.nodes
         root['animations'] = self.animations
-        # shapekeys encodes separetly
         return root
-
-
-class G3dError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        

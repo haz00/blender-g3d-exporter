@@ -1,8 +1,13 @@
 # <pep8 compliant>
-
+import logging
 import struct
+from pathlib import Path
 from typing import Any, Union, List
+
+import bpy
 from mathutils import Color, Matrix, Quaternion, Vector
+
+log = logging.getLogger(__name__)
 
 
 def unwrapv(v: Union[Vector, Color]) -> List[float]:
@@ -21,21 +26,9 @@ def int_bits_to_float(b: int) -> float:
     return struct.unpack('>f', struct.pack('>I', b))[0]
 
 
-def hash_vert(vert: List[float]) -> int:
-    p = 31
-    r = 1
-    for f in vert:
-        r = p * r + float_to_int_bits(f)
-    return r
-
-
-def conv_uv(v: List[float], flip: bool = False) -> List[float]:
-    return [v[0], 1.0 - v[1] if flip else [1]]
-
-
 def conv_vec(v: Vector, w: float = None) -> List[float]:
     conv = unwrapv(v)
-    if (w != None):
+    if w is not None:
         conv.append(w)
     return conv
 
@@ -43,11 +36,6 @@ def conv_vec(v: Vector, w: float = None) -> List[float]:
 def conv_quat(v: Union[List[float], Quaternion]) -> List[float]:
     # blender quaternion is wxyz
     return [v[1], v[2], v[3], v[0]]
-
-
-def pack_color(rgba: List[float]) -> float:
-    abgr_int = int(rgba[3] * 255) << 24 | int(rgba[2] * 255) << 16 | int(rgba[1] * 255) << 8 | int(rgba[0] * 255)
-    return int_bits_to_float(abgr_int & 0xfeffffff)
 
 
 def new_transorm_matrix(loc: Vector, rot: Quaternion, sca: Vector) -> Matrix:
@@ -61,3 +49,17 @@ def new_transorm_matrix(loc: Vector, rot: Quaternion, sca: Vector) -> Matrix:
     mat_sca = mat_scax @ mat_scay @ mat_scaz
 
     return mat_loc @ mat_rot @ mat_sca
+
+
+def write(data, file: Path, mode='w') -> Path:
+    file.parent.mkdir(exist_ok=True)
+
+    with open(file, mode) as f:
+        f.write(data)
+        log.debug('write %s', file.absolute())
+    return file
+
+
+class G3dError(Exception):
+    def __init__(self, message):
+        super().__init__(message)

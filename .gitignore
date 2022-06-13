@@ -3,4 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 build
-tests
+
+.idea/
+*.iml
+*.ipr
+.gradle/
+**/build/
+!src/**/build/

@@ -23,11 +23,11 @@ public class DemoImpl extends BaseDemo {
         super.create();
 
         assets.setLoader(ModelShape.class, ".shapes", new ModelShapeLoader(assets.getFileHandleResolver(), new JsonReader()));
-        assets.load("suzanne.g3db", Model.class);
-        assets.load("suzanne.shapes", ModelShape.class);
+        assets.load("demo.shapes", ModelShape.class);
+        assets.load("demo.g3db", Model.class);
         assets.finishLoading();
 
-        Model model = assets.get("suzanne.g3db", Model.class);
+        Model model = assets.get("demo.g3db", Model.class);
         model.getMaterial("tree").set(new BlendingAttribute());
         inst = new ModelInstance(model);
 
@@ -35,7 +35,7 @@ public class DemoImpl extends BaseDemo {
         animCtl.setAnimation("SuzanneArmature|SuzanneAction", -1);
         armatureNode = inst.getNode("SuzanneArmature");
 
-        ModelShape modelShape = assets.get("suzanne.shapes", ModelShape.class);
+        ModelShape modelShape = assets.get("demo.shapes", ModelShape.class);
 
         headShape = modelShape.getShape("head mesh");
         headShape.setMesh(inst.getNode("head"));

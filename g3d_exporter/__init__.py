@@ -15,20 +15,18 @@ bl_info = {
 
 if "bpy" in locals():
     import importlib
-    importlib.reload(common)
-    importlib.reload(g3db_encoder)
-    importlib.reload(g3dj_encoder)
-    importlib.reload(generator)
-    importlib.reload(model)
-    importlib.reload(export_operator)
+    importlib.reload(g3d_exporter.common)
+    importlib.reload(g3d_exporter.encoder)
+    importlib.reload(g3d_exporter.builder)
+    importlib.reload(g3d_exporter.model)
+    importlib.reload(g3d_exporter.export_operator)
 else:
     import bpy
-    from . import common
-    from . import g3db_encoder
-    from . import g3dj_encoder
-    from . import generator
-    from . import model
-    from . import export_operator
+    import g3d_exporter.common
+    import g3d_exporter.encoder
+    import g3d_exporter.builder
+    import g3d_exporter.model
+    import g3d_exporter.export_operator
 
 classes = [
     export_operator.G3djExportOperator,

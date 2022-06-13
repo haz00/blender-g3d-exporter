@@ -1,22 +1,24 @@
 # <pep8 compliant>
+import logging
+import traceback
 
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import BoolProperty, IntProperty, EnumProperty
 from bpy.types import Operator
 
-from pathlib import Path
-from typing import Any, List
 import shutil
 
-from .model import G3dError, G3dModel, GShape
-from .generator import G3dBuilder
-from . import g3dj_encoder
-from . import g3db_encoder
+from g3d_exporter import builder
+from g3d_exporter.builder import ModelOptions
+from g3d_exporter.model import G3dModel, GShape
+from g3d_exporter.common import *
+from g3d_exporter import encoder
+
+log = logging.getLogger(__name__)
 
 
 class BaseG3dExportOperator(ExportHelper):
-
     selected_only: BoolProperty(
         name="Selected Only",
         description="",
@@ -38,7 +40,7 @@ class BaseG3dExportOperator(ExportHelper):
     use_normal: BoolProperty(
         name="Normal",
         description="Include vertex normal attribute",
-        default=False,
+        default=True,
     )
 
     use_color: BoolProperty(
@@ -97,8 +99,14 @@ class BaseG3dExportOperator(ExportHelper):
 
     max_bones_per_nodepart: IntProperty(
         name="Nodepart bones",
-        description="Max bones per single nodepart. The recomended value is vertex_bones * 3",
+        description="Max bones per single nodepart.\nThe recommended value is vertex_bones * 3",
         default=12,
+    )
+
+    max_vertices_per_mesh: IntProperty(
+        name="Mesh vertices",
+        description="Max vertices/indices per mesh.\nThe recommended value is 32767 (short type)",
+        default=32767,
     )
 
     add_bone_tip: BoolProperty(
@@ -110,6 +118,12 @@ class BaseG3dExportOperator(ExportHelper):
     use_actions: BoolProperty(
         name="Actions",
         description="Export actions as animation",
+        default=True,
+    )
+
+    use_material: BoolProperty(
+        name="Export material",
+        description="Export material parameters",
         default=True,
     )
 
@@ -144,7 +158,6 @@ class BaseG3dExportOperator(ExportHelper):
             ('TRIANGLE_STRIP', 'TRIANGLE_STRIP', ''),
             ('LINE_STRIP', 'LINE_STRIP', ''))
     )
-    
 
     def draw(self, context):
         layout = self.layout
@@ -159,7 +172,7 @@ class BaseG3dExportOperator(ExportHelper):
 
         # mesh attributes
         box = layout.box()
-        box.label(text = "Mesh")
+        box.label(text="Mesh")
         box.row().prop(operator, "use_normal")
 
         row = box.row()
@@ -181,19 +194,23 @@ class BaseG3dExportOperator(ExportHelper):
 
         box.row().prop(operator, "use_shapekeys")
         box.row().prop(operator, "primitive_type")
+        box.row().prop(operator, "max_vertices_per_mesh")
 
         # material
         box = layout.box()
-        box.label(text = "Material")
-        box.row().prop(operator, "copy_textures")
-        
+        box.label(text="Material")
+        box.row().prop(operator, "use_material")
+
+        row = box.row()
+        row.enabled = self.use_material
+        row.prop(operator, "copy_textures")
         row = box.row()
         row.enabled = self.copy_textures
         row.prop(operator, "copy_texture_strategy")
 
         # armature
         box = layout.box()
-        box.label(text = "Armature")
+        box.label(text="Armature")
         box.row().prop(operator, "use_armature")
         row = box.row()
         row.enabled = self.use_armature
@@ -207,90 +224,93 @@ class BaseG3dExportOperator(ExportHelper):
 
         # animation
         box = layout.box()
-        box.label(text = "Armature")
+        box.label(text="Armature")
         box.row().prop(operator, "use_actions")
-        
-        row = box.row()
-        row.enabled = self.use_actions 
-        row.prop(operator, "fps")
 
+        row = box.row()
+        row.enabled = self.use_actions
+        row.prop(operator, "fps")
 
     def execute(self, context):
         """called by blender"""
 
-        if self.selected_only:
-            candidates = bpy.context.selected_objects
-        else:
-            candidates = list(bpy.data.objects)
-
-        gen = G3dBuilder(candidates)
-        gen.y_up = self.y_up
-        gen.use_normal = self.use_normal
-        gen.use_color = self.use_color
-        gen.packed_color = self.packed_color
-        gen.use_uv = self.use_uv
-        gen.use_tangent = self.use_tangent
-        gen.use_binormal = self.use_binormal
-        gen.flip_uv = self.flip_uv
-        gen.use_armature = self.use_armature
-        gen.max_bones_per_vertex = self.max_bones_per_vertex
-        gen.max_bones_per_nodepart = self.max_bones_per_nodepart
-        gen.use_shapekeys = self.use_shapekeys
-        gen.use_actions = self.use_actions
-        gen.add_bone_tip = self.add_bone_tip
-        gen.apply_modifiers = self.apply_modifiers
-        gen.fps = self.fps
-        gen.primitive_type = self.primitive_type
-
         try:
-            model = gen.generate()
+            opt = self._build_options()
+            model = builder.build(opt)
+
             out = Path(self.filepath)
 
             if self.copy_textures:
                 self._copy_textures(out.parent, model)
 
             writepath = self.export_g3d(out, model)
-            self.report({'INFO'}, f"Export to {writepath}")
+            self.report({'INFO'}, f"Export {writepath}")
 
             if self.use_shapekeys:
                 writepath = self.export_shapekeys(out, model.shapes)
-                self.report({'INFO'}, f"Export to {writepath}")
+                self.report({'INFO'}, f"Export {writepath}")
 
         except G3dError as e:
             self.report({'ERROR'}, str(e))
+            log.exception(str(e))
 
         return {'FINISHED'}
-            
 
-    def _write(self, data, file: Path, flags='w') -> Path:
-        with open(file, flags) as f:
-            f.write(data)
-            print('write', file.absolute())
-        return file
+    def _build_options(self) -> ModelOptions:
+        opt = ModelOptions()
+        opt.selected_only = self.selected_only
+        opt.y_up = self.y_up
+        opt.use_normal = self.use_normal
+        opt.use_color = self.use_color
+        opt.use_material = self.use_material
+        opt.packed_color = self.packed_color
+        opt.use_uv = self.use_uv
+        opt.use_tangent = self.use_tangent
+        opt.use_binormal = self.use_binormal
+        opt.flip_uv = self.flip_uv
+        opt.use_armature = self.use_armature
+        opt.max_bones_per_vertex = self.max_bones_per_vertex
+        opt.max_bones_per_nodepart = self.max_bones_per_nodepart
+        opt.max_vertices_per_mesh = self.max_vertices_per_mesh
+        opt.use_shapekeys = self.use_shapekeys
+        opt.use_actions = self.use_actions
+        opt.add_bone_tip = self.add_bone_tip
+        opt.apply_modifiers = self.apply_modifiers
+        opt.fps = self.fps
+        opt.primitive_type = self.primitive_type
+        return opt
 
+    def export_g3d(self, out: Path, model: G3dModel) -> Path:
+        raise ValueError("not implemented")
+
+    def export_shapekeys(self, out: Path, shapes: List[GShape]) -> Path:
+        raise ValueError("not implemented")
 
     def _copy_textures(self, source_dir: Path, model: G3dModel):
-        """Copy or unpack textures to textures subfolder and update model paths"""
-        dst_dir =  source_dir / "textures"
+        """Copy or unpack textures to 'textures' sub folder and update model paths"""
+        dst_dir = source_dir / "textures"
         dst_dir.mkdir(exist_ok=True)
 
-        for mat in model.materials.values():
+        for mat in model.materials:
             for tex in mat.textures:
-                img = tex.source 
+                img = tex.image
                 dst = dst_dir / tex.filename
                 tex.filename = f"textures/{tex.filename}"
 
                 if self.copy_texture_strategy == 'RESPECT' and dst.exists():
                     continue
 
-                print(f"copy texture {tex.id} to {dst}")
+                log.debug("copy texture %s to %s", tex.id, dst)
 
-                if img.packed_file == None:
-                    shutil.copyfile(img.filepath_from_user(), dst)
-                else:
-                    with open(dst, 'wb') as f:
-                        f.write(img.packed_file.data)
-                
+                try:
+                    if img.packed_file is None:
+                        shutil.copyfile(img.filepath_from_user(), dst)
+                    else:
+                        with open(dst, 'wb') as f:
+                            f.write(img.packed_file.data)
+                except FileNotFoundError as e:
+                    raise G3dError(f"Cannot copy texture: {e}")
+
 
 class G3djExportOperator(Operator, BaseG3dExportOperator):
     bl_idname = "export_scene.g3dj"
@@ -299,13 +319,12 @@ class G3djExportOperator(Operator, BaseG3dExportOperator):
     bl_options = {'PRESET'}
 
     def export_g3d(self, filepath: Path, model: G3dModel) -> Path:
-        data = g3dj_encoder.encode(model)
-        return self._write(data, filepath.with_suffix('.g3dj'), 'w')
-
+        data = encoder.encode_json(model)
+        return write(data, filepath.with_suffix('.g3dj'), 'w')
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
-        data = g3dj_encoder.encode({"shapes": shapes})
-        return self._write(data, filepath.with_suffix(".shapes"), 'w')
+        data = encoder.encode_json({"shapes": shapes})
+        return write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 class G3dbExportOperator(Operator, BaseG3dExportOperator):
@@ -314,22 +333,19 @@ class G3dbExportOperator(Operator, BaseG3dExportOperator):
     filename_ext = ".g3db"
     bl_options = {'PRESET'}
 
-
     def export_g3d(self, filepath: Path, model: G3dModel) -> Path:
-        data = g3db_encoder.encode(model)
-        return self._write(data, filepath.with_suffix('.g3db'), 'wb')
-
+        data = encoder.encode_binary(model)
+        return write(data, filepath.with_suffix('.g3db'), 'wb')
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
         # TODO binary too
-        data = g3dj_encoder.encode({"shapes": shapes})
-        return self._write(data, filepath.with_suffix(".shapes"), 'w')
+        data = encoder.encode_json({"shapes": shapes})
+        return write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 def menu_func_export(self, context):
     self.layout.operator(G3djExportOperator.bl_idname, text="G3D (.g3dj)")
     self.layout.operator(G3dbExportOperator.bl_idname, text="G3D (.g3db)")
-
 
 
 def register():
