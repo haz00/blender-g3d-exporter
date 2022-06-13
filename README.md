@@ -8,6 +8,7 @@ The demo folder contains LibGDX project with examples.
 - Y-up
 - Bake bone animations
 - Vertex attributes customization
+- Binary encoding
 - Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
 # Installation
@@ -17,12 +18,17 @@ The demo folder contains LibGDX project with examples.
 4. File - Export - .g3dj/.g3db
 5. Follow addon settings
 
+<p align="center">
+    <img src="./docs/screenshot.jpg"/><br>
+    <em>v0.7</em>
+</p>
+
 # Useful links
 [LibGDX Model user guide](https://libgdx.com/wiki/graphics/3d/quick-start)
 
 [G3D Specification](https://github.com/libgdx/fbx-conv/wiki/Version-0.1-%28libgdx-0.9.9%29)
 
-Blender developing 
+For Blender developers
 [1](https://docs.blender.org/api/current/info_quickstart.html) 
 [2](https://docs.blender.org/api/current/info_tips_and_tricks.html#executing-modules)
 [3](https://docs.blender.org/manual/en/latest/advanced/scripting/index.html)
