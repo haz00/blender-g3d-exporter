@@ -154,3 +154,7 @@ def make_skinned(obj_arm: bpy.types.Object, obj: bpy.types.Object, strategy='ARM
     obj.select_set(True)
     obj_arm.select_set(True)
     bpy.ops.object.parent_set(type=strategy)
+
+
+def qualified_classname(o):
+    return o.__module__ + '.' + o.__name__

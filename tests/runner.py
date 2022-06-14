@@ -12,16 +12,20 @@ def main():
     import tests
 
     classes = [
-        tests.base.BaseTest,
         tests.builder_test.G3dBuilderTest,
         tests.builder_test.MeshNodeDataBuilderTest,
         tests.builder_test.BlendweightAttributeBuilderTest,
     ]
 
-    suite = unittest.TestSuite()
+    # read the cli args that were passed after --
+    names = sys.argv[sys.argv.index("--") + 1:]
 
-    for cls in classes:
-        suite.addTest(unittest.makeSuite(cls))
+    if not names:
+        from tests.common import qualified_classname
+        names = [qualified_classname(cls) for cls in classes]
+
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromNames(names)
 
     result = unittest.TextTestRunner().run(suite).wasSuccessful()
     sys.exit(not result)

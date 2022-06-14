@@ -3,7 +3,10 @@ cli commands:
     - install
     - uninstall
     - zip
-    - test "blender_exe_path"
+    - test blender_exe_path [test_case] [test_case]...
+        test_case - Fully qualified path to test. Examples:
+                    tests.builder_test.G3dBuilderTest
+                    tests.builder_test.G3dBuilderTest.test_flags
 """
 
 import hashlib
@@ -12,6 +15,7 @@ import sys
 import os
 from pathlib import Path
 import shutil
+from typing import List
 
 addon_package = 'g3d_exporter'
 source_dir = Path("g3d_exporter")
@@ -74,9 +78,9 @@ def sign(src: Path):
             f.write('\nSHA1:\t' + sha1)
 
 
-def run_tests(blend_exe: str):
+def run_tests(blend_exe: str, args: List[str]):
     script = "tests/runner.py"
-    subprocess.run([blend_exe, "--factory-startup", "--background", "-noaudio", "--python", script])
+    subprocess.run([blend_exe, "--factory-startup", "--background", "-noaudio", "--python", script, "--", *args])
 
 
 def export_demo(blend_exe: str):
@@ -100,7 +104,7 @@ if __name__ == "__main__":
     elif cmd == "uninstall":
         uninstall()
     elif cmd == "test":
-        run_tests(sys.argv[2])
+        run_tests(sys.argv[2], sys.argv[3:])
     elif cmd == "demo":
         export_demo(sys.argv[2])
     else:
