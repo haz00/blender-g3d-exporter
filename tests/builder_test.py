@@ -476,7 +476,7 @@ class BlendweightAttributeBuilderTest(BaseTest):
         builder = BlendweightAttributeBuilder(slots, bones, 3, opt.max_bones_per_nodepart)
 
         v0 = VertexInfo(self.obj1.data.vertices[0], self.obj1.data.loops[0], self.obj1, self.obj1.data, opt)
-        builder.setup_vertex(v0)
+        builder._setup_bones(v0)
 
         self.assertEqual(len(v0.vert.groups), 2)
         self.assertIn('Bone', builder._bones)
@@ -484,7 +484,7 @@ class BlendweightAttributeBuilderTest(BaseTest):
 
         v1 = VertexInfo(self.obj1.data.vertices[1], self.obj1.data.loops[0], self.obj1, self.obj1.data, opt)
 
-        builder.setup_vertex(v1)
+        builder._setup_bones(v1)
 
         self.assertEqual(len(v1.vert.groups), 2)
         self.assertIn('Bone', builder._bones)

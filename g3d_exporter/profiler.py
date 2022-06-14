@@ -7,7 +7,7 @@ from typing import Dict, Callable, List
 class FunctionMetric(object):
     def __init__(self, name: str):
         self.name = name
-        self.duration = 0
+        self.total = 0
         self.calls = 0
 
 
@@ -25,7 +25,7 @@ def profile(func):
             if not metric:
                 metric = FunctionMetric(f"{func.__module__}.{func.__qualname__}")
                 metrics[func] = metric
-            metric.duration += duration
+            metric.total += duration
             metric.calls += 1
 
     if logging.root.level == logging.DEBUG:

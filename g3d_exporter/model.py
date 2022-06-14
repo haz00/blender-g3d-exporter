@@ -75,7 +75,8 @@ class VertexFlag(object):
 
 class GMesh(object):
     """
-    mesh is unique for attributes flags and for meshes with shapekeys, all other blender meshes will be merged into single mesh
+    mesh is unique for attributes flags and for meshes with shapekeys,
+    all other blender meshes will be merged into single mesh
     """
     def __init__(self, attributes: Tuple[VertexFlag]):
         self.attributes: Tuple[VertexFlag] = attributes
@@ -148,7 +149,6 @@ class BonePart(object):
 
 
 class GNodePart(object):
-    """node part binds mesh part and material"""
     def __init__(self, material: str, meshpart: str):
         self.meshpart = meshpart
         self.material = material
@@ -175,18 +175,6 @@ class GNode(object):
         self.scale: Vector = None
         self.translation: Vector = None
         self.rotation: Quaternion = None
-
-    def set_parent(self, parent):
-        if parent == self.parent:
-            return
-
-        if self.parent:
-            self.parent.children.remove(self)
-
-        self.parent = parent
-
-        if self.parent:
-            self.parent.children.append(self)
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()

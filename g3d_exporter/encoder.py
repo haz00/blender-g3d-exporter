@@ -17,10 +17,12 @@ def _default_bin_mapper(obj):
         raise simpleubjson.exceptions.EncodeError(type(obj))
 
 
+@profile
 def encode_binary(g3d: G3dModel) -> Any:
     return simpleubjson.encode(g3d, old_format_json=True, default=_default_bin_mapper)
 
 
+@profile
 def encode_json(obj):
     return json.dumps(obj, cls=G3DJsonEncoder)
 

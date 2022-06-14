@@ -7,6 +7,10 @@ from tests.common import *
 
 
 class Benchmark(BaseTest):
+    def setUp(self):
+        super().setUp()
+        profiler.metrics.clear()
+
     def test_mesh(self):
         obj1 = add_triangle("obj1")
 
@@ -17,7 +21,8 @@ class Benchmark(BaseTest):
         opt.selected_only = True
 
         try:
-            builder.build(opt)
+            mod = builder.build(opt)
+            json = encoder.encode_json(mod)
         finally:
             dump_metrics()
 
@@ -28,12 +33,16 @@ def dump_metrics():
 
     filename = out_dir / f"{datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')}.txt"
 
-    metrics = sorted(profiler.metrics.values(), key=lambda m: m.duration, reverse=True)
-
     with open(filename, 'w') as f:
-        f.write("{:<100} {:>6} {:>7} {:>6}\n".format("FUNCTION", "CALLS", "SUM(ms)", "AV(ms)"))
+        metrics = sorted(profiler.metrics.values(), key=lambda m: m.total, reverse=True)
+        max_metric = max(metrics, key=lambda m: m.total)
+
+        f.write("{:<80} {:>10} {:>10} {:>10} {:>10}\n"
+                .format("FUNCTION", "CALLS", "TOTAL(ms)", "AVG(ms)", "TOTAL %"))
+
         for m in metrics:
-            f.write("{:<100} {:>6} {:>7.0f} {:>6.2f}\n".format(m.name,
-                                                             m.calls,
-                                                             m.duration * 1000, (m.duration / float(m.calls)) * 1000))
-        log.debug("dump metrics to %s", filename)
+            avg = m.total / float(m.calls) * 1000
+            prc = m.total / max_metric.total * 100
+            f.write("{:<80} {:>10} {:>10.3f} {:>10.3f} {:>10.3f}\n"
+                    .format(m.name, m.calls, m.total * 1000, avg, prc))
+        log.debug("dump benchmark to %s", filename)

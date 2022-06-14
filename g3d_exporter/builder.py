@@ -53,7 +53,7 @@ class G3MeshData(object):
     def __init__(self, attributes: Tuple[model.VertexFlag]) -> None:
         self.attributes = attributes
         self.vertices: List[Vertex] = list()
-        self.vertex_index: Dict[Vertex, int] = dict()
+        self.vertex_index: Dict[int, int] = dict()
         self.parts: Dict[str, MeshpartData] = dict()
         self.shape: model.GShape = None
 
@@ -163,10 +163,6 @@ class Vertex(object):
                 self.hash = 31 * self.hash + float_to_int_bits(f)
         return self.hash
 
-    @profile
-    def __eq__(self, other):
-        return isinstance(other, type(self)) and hash(self) == hash(other)
-
 
 class NodePartBuilder(object):
     def __init__(self, material: model.GMaterial, meshpart: MeshpartData) -> None:
@@ -263,10 +259,7 @@ class FaceInfo(object):
 
     @profile
     def setup(self, meta: MeshMetaInfo):
-        """creates vertex builders"""
-        for attr in meta.attributes:
-            attr.begin_face()
-
+        """collect vertex info"""
         for iv in range(len(self.polygon.vertices)):
             vert_idx = self.polygon.vertices[iv]
             loop_idx = self.polygon.loop_start + iv
@@ -274,12 +267,7 @@ class FaceInfo(object):
             vert: bpy.types.MeshVertex = meta.mesh.vertices[vert_idx]
             loop: bpy.types.MeshLoop = meta.mesh.loops[loop_idx]
 
-            info = VertexInfo(vert, loop, meta.obj, meta.mesh, self.opt)
-
-            for attr in meta.attributes:
-                attr.setup_vertex(info)
-
-            self.vertices.append(info)
+            self.vertices.append(VertexInfo(vert, loop, meta.obj, meta.mesh, self.opt))
 
     @profile
     def build(self, meta: MeshMetaInfo, nodepart: NodePartBuilder) -> typing.Generator[Vertex, None, None]:
@@ -293,25 +281,20 @@ class FaceInfo(object):
             yield Vertex(v_info.vert, tuple(data))
 
 
+class FaceListener(object):
+    def on_new_face(self, face: FaceInfo):
+        raise ValueError("not implemented")
+
+
+class NodePartFilter(object):
+    def filter_nodepart(self, part: NodePartBuilder):
+        raise ValueError("not implemented")
+
+
 class AttributeBuilder(object):
     """Vertex attribute of single mesh"""
     def flags(self) -> List[model.VertexFlag]:
         raise ValueError("not implemented")
-
-    @profile
-    def begin_face(self):
-        """stage 0: begin face"""
-        pass
-
-    @profile
-    def setup_vertex(self, info: VertexInfo):
-        """stage 1: setup face vertices"""
-        pass
-
-    @profile
-    def filter_nodepart(self, part: NodePartBuilder) -> bool:
-        """stage 2: determine nodepart"""
-        return True
 
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         """stage 3: build vertex"""
@@ -402,7 +385,7 @@ class UvAttributeBuilder(AttributeBuilder):
         data.append(1.0 - uv[1] if self.flip else uv[1])
 
 
-class BlendweightAttributeBuilder(AttributeBuilder):
+class BlendweightAttributeBuilder(AttributeBuilder, FaceListener, NodePartFilter):
     def __init__(self,
                  slots: Dict[str, bpy.types.VertexGroup],
                  armature_bones: Dict[str, bpy.types.Bone],
@@ -419,16 +402,17 @@ class BlendweightAttributeBuilder(AttributeBuilder):
         return [model.VertexFlag(f"BLENDWEIGHT{i}", 2) for i in range(self.length)]
 
     @profile
-    def begin_face(self):
+    def on_new_face(self, face: FaceInfo):
         self._bones.clear()
 
-    @profile
-    def setup_vertex(self, info: VertexInfo):
+        for info in face.vertices:
+            self._setup_bones(info)
+
+    def _setup_bones(self, info: VertexInfo):
         """search bone weight by each group assigned to the vertex"""
         info.bones = dict()
 
         for group_element in info.vert.groups:
-            # skip zero weights
             if len(info.bones) == self.length:
                 break
 
@@ -458,7 +442,7 @@ class BlendweightAttributeBuilder(AttributeBuilder):
 
     @profile
     def filter_nodepart(self, part: NodePartBuilder) -> bool:
-        """here we need to find a part which can supply all bones of this face"""
+        """here we need to find a part which can supply all bones for this face"""
         if not self._bones:
             return True
 
@@ -529,6 +513,8 @@ class MeshNodeDataBuilder(object):
         self.g3data = g3data
         self.opt = opt
         self.material_builder = MaterialBuilder(g3data, opt)
+        self._face_listeners: List[FaceListener] = list()
+        self._nodepart_filters: List[NodePartFilter] = list()
 
     def build(self, obj: bpy.types.Object,
               mesh: bpy.types.Mesh,
@@ -562,6 +548,9 @@ class MeshNodeDataBuilder(object):
             face = FaceInfo(polygon, material, self.opt)
             face.setup(meta)
 
+            for ls in self._face_listeners:
+                ls.on_new_face(face)
+
             nodepart = self._get_nodepart(meta, material, g3mesh, meshdata.parts)
 
             for vert in face.build(meta, nodepart):
@@ -574,12 +563,13 @@ class MeshNodeDataBuilder(object):
 
     @profile
     def _add_vertex(self, vert: Vertex, g3mesh: G3MeshData, meshpart: MeshpartData):
-        vert_idx = g3mesh.vertex_index.get(vert, None)
+        vhash = hash(vert)
+        vert_idx = g3mesh.vertex_index.get(vhash, None)
 
         # add new vertex, reuse index else
         if vert_idx is None:
             vert_idx = len(g3mesh.vertices)
-            g3mesh.vertex_index[vert] = vert_idx
+            g3mesh.vertex_index[vhash] = vert_idx
             g3mesh.vertices.append(vert)
 
             if g3mesh.shape is not None:
@@ -588,6 +578,7 @@ class MeshNodeDataBuilder(object):
         vert_idx = vert_idx % self.opt.max_vertices_per_mesh
         meshpart.indices.append(vert_idx)
 
+    @profile
     def _add_shapekeys(self, vert: bpy.types.MeshVertex, shape: model.GShape):
         for key in shape.keys:
             key_vert = key.block.data[vert.index]
@@ -645,6 +636,8 @@ class MeshNodeDataBuilder(object):
             log.debug("set blendweights length %s: %d", mesh.name, builder.length)
             log.debug("set bones per nodepart %s: %d", mesh.name, builder.max_bones_per_nodepart)
             meta.attributes.append(builder)
+            self._face_listeners.append(builder)
+            self._nodepart_filters.append(builder)
         return meta
 
     @profile
@@ -682,7 +675,7 @@ class MeshNodeDataBuilder(object):
     def _get_nodepart(self, meta: MeshMetaInfo, mat: model.GMaterial,
                       g3mesh: G3MeshData, nodeparts: List[NodePartBuilder]) -> NodePartBuilder:
         """get or create nodepart"""
-        nodepart = self._find_nodepart(meta.attributes, mat, nodeparts)
+        nodepart = self._find_nodepart(mat, nodeparts)
 
         if not nodepart:
             meshpartid = f"{meta.mesh.name}_part{len(g3mesh.parts)}"
@@ -697,20 +690,17 @@ class MeshNodeDataBuilder(object):
         return nodepart
 
     @profile
-    def _find_nodepart(self, attrs: List[AttributeBuilder], mat: model.GMaterial,
-                       parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:
+    def _find_nodepart(self, mat: model.GMaterial, parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:
         """find part by material and bones included to it"""
         for part in parts:
-            if part.material != mat:
-                continue
-            if self._filter_nodeparts(attrs, part):
+            if part.material == mat and self._filter_nodeparts(part):
                 return part
         return None
 
     @profile
-    def _filter_nodeparts(self, attrs: List[AttributeBuilder], part: NodePartBuilder) -> bool:
-        for attr in attrs:
-            if not attr.filter_nodepart(part):
+    def _filter_nodeparts(self, part: NodePartBuilder) -> bool:
+        for filter in self._nodepart_filters:
+            if not filter.filter_nodepart(part):
                 return False
         return True
 
@@ -769,7 +759,7 @@ class ArmatureNodeBuilder(NodeBuilder):
         """build tree from root bones"""
         log.debug("build bones tree of %s", node.id)
 
-        # data.bones are flatten from the roots
+        # data.bones are flattened from the roots
         for b_bone in self.obj.data.bones:
             if b_bone.parent is None:
                 child = self._create_armature_bones_recursively(b_bone)
@@ -855,7 +845,7 @@ class ArmatureNodeBuilder(NodeBuilder):
 
             for eval_idx in range(eval_count):
                 cur_frame = frame + eval_idx
-                # first keyframe is the start of animation so it's millis is 0
+                # first keyframe is the start of animation, so it's millis is 0
                 millis = (1.0 / self.opt.fps) * 1000 * (cur_frame - timeline[0])
 
                 pose = bone_action.eval_pose(cur_frame)
@@ -869,7 +859,6 @@ class G3Builder(object):
     def __init__(self, opt: ModelOptions):
         self.opt = opt
         self.data = G3Data()
-        self.meshdata_builder = MeshNodeDataBuilder(self.data, self.opt)
 
     def build(self) -> model.G3dModel:
         log.debug('start building...')
@@ -935,7 +924,7 @@ class G3Builder(object):
 
             if meshdata is None:
                 armature = self._get_attached_armature(obj, selected_only)
-                meshdata = self.meshdata_builder.build(eval_obj, eval_mesh, armature)
+                meshdata = MeshNodeDataBuilder(self.data, self.opt).build(eval_obj, eval_mesh, armature)
                 self.data.mesh_node_data[meshdata_key] = meshdata
 
             node = MeshNodeBuilder(obj, meshdata).build()
@@ -1031,13 +1020,13 @@ class G3Builder(object):
         mod.nodes = self.data.nodes
 
     @profile
-    def _make_animations(self, model: model.G3dModel):
-        model.animations = list(self.data.animations.values())
+    def _make_animations(self, mod: model.G3dModel):
+        mod.animations = list(self.data.animations.values())
 
-    def _make_shapekeys(self, model: model.G3dModel):
+    def _make_shapekeys(self, mod: model.G3dModel):
         for mesh in self.data.meshes.values():
             if mesh.shape:
-                model.shapes.append(mesh.shape)
+                mod.shapes.append(mesh.shape)
 
 
 class BoneAction(object):

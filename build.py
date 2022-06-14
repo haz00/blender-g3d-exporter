@@ -72,10 +72,10 @@ def sign(src: Path):
         sha1 = hashlib.sha1(buf).hexdigest()
 
         dst = src.parent / (src.name + '.hashsum')
-        with open(dst, 'w') as f:
-            f.write(str(src.name))
-            f.write('\nMD5:\t' + md5)
-            f.write('\nSHA1:\t' + sha1)
+        with open(dst, 'w') as ff:
+            ff.write(str(src.name))
+            ff.write('\nMD5:\t' + md5)
+            ff.write('\nSHA1:\t' + sha1)
 
 
 def run_tests(blend_exe: str, args: List[str]):

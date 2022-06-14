@@ -1,5 +1,6 @@
 # <pep8 compliant>
 import logging
+import time
 import traceback
 
 import bpy
@@ -234,6 +235,7 @@ class BaseG3dExportOperator(ExportHelper):
     def execute(self, context):
         """called by blender"""
 
+        start = time.process_time()
         try:
             opt = self._build_options()
             model = builder.build(opt)
@@ -244,11 +246,12 @@ class BaseG3dExportOperator(ExportHelper):
                 self._copy_textures(out.parent, model)
 
             writepath = self.export_g3d(out, model)
-            self.report({'INFO'}, f"Export {writepath}")
 
             if self.use_shapekeys:
-                writepath = self.export_shapekeys(out, model.shapes)
-                self.report({'INFO'}, f"Export {writepath}")
+                self.export_shapekeys(out, model.shapes)
+
+            duration = time.process_time() - start
+            self.report({'INFO'}, "Export {:s} ({:.2f} sec)".format(str(writepath), duration))
 
         except G3dError as e:
             self.report({'ERROR'}, str(e))

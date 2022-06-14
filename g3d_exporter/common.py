@@ -4,26 +4,35 @@ import struct
 from pathlib import Path
 from typing import Any, Union, List
 
-import bpy
 from mathutils import Color, Matrix, Quaternion, Vector
 
+from g3d_exporter.profiler import profile
+
 log = logging.getLogger(__name__)
+
+pack_float = struct.Struct('>f').pack
+pack_uint = struct.Struct('>I').pack
+unpack_float = struct.Struct('>f').unpack
+unpack_long = struct.Struct('>l').unpack
 
 
 def unwrapv(v: Union[Vector, Color]) -> List[float]:
     return [v[0], v[1], v[2]]
 
 
+@profile
 def flatten(arr: List[Any]) -> List[Any]:
     return [item for sublist in arr for item in sublist]
 
 
+@profile
 def float_to_int_bits(f: float) -> int:
-    return struct.unpack('>l', struct.pack('>f', f))[0]
+    return unpack_long(pack_float(f))[0]
 
 
+@profile
 def int_bits_to_float(b: int) -> float:
-    return struct.unpack('>f', struct.pack('>I', b))[0]
+    return unpack_float(pack_uint(b))[0]
 
 
 def conv_vec(v: Vector, w: float = None) -> List[float]:
@@ -38,6 +47,7 @@ def conv_quat(v: Union[List[float], Quaternion]) -> List[float]:
     return [v[1], v[2], v[3], v[0]]
 
 
+@profile
 def new_transorm_matrix(loc: Vector, rot: Quaternion, sca: Vector) -> Matrix:
     mat_rot = rot.to_matrix().to_4x4()
 
@@ -51,6 +61,7 @@ def new_transorm_matrix(loc: Vector, rot: Quaternion, sca: Vector) -> Matrix:
     return mat_loc @ mat_rot @ mat_sca
 
 
+@profile
 def write(data, file: Path, mode='w') -> Path:
     file.parent.mkdir(exist_ok=True)
 
