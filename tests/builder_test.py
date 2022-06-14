@@ -1,7 +1,3 @@
-import unittest
-
-import bpy
-
 from g3d_exporter import builder
 from g3d_exporter.builder import *
 from g3d_exporter.model import *

@@ -4,7 +4,9 @@ import bpy
 
 from typing import Dict, Tuple
 
+import g3d_exporter.profiler
 from g3d_exporter.common import *
+from g3d_exporter.profiler import profile
 
 
 class GShape(object):
@@ -59,9 +61,11 @@ class VertexFlag(object):
         self.name: str = name
         self.length: int = length
 
+    @profile
     def __eq__(self, o: object) -> bool:
         return isinstance(o, type(self)) and o.name == self.name and o.length == self.length
 
+    @profile
     def __hash__(self):
         return hash((self.name, self.length))
 

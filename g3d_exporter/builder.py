@@ -15,6 +15,7 @@ import os
 
 from g3d_exporter import model
 from g3d_exporter.common import *
+from g3d_exporter.profiler import profile
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class ModelOptions(object):
         self.primitive_type = 'TRIANGLES'
 
 
+@profile
 def build(opt: ModelOptions) -> model.G3dModel:
     return G3Builder(opt).build()
 
@@ -92,6 +94,7 @@ class MaterialBuilder(object):
         self.g3data = g3data
         self.texture_builder = TextureBuilder(opt)
 
+    @profile
     def build(self, material: bpy.types.Material) -> model.GMaterial:
         gmat = model.GMaterial(material.name)
 
@@ -146,19 +149,21 @@ class MaterialBuilder(object):
 class Vertex(object):
     def __init__(self, original: bpy.types.MeshVertex, data: Tuple[float] = ()):
         self.data: Tuple[float] = data
-        self.hash: int = -1
+        self.hash: int = None
         self.original = original
 
     def __str__(self):
         return str(self.data)
 
+    @profile
     def __hash__(self):
-        if self.hash == -1:
+        if self.hash is None:
             self.hash = 1
             for f in self.data:
                 self.hash = 31 * self.hash + float_to_int_bits(f)
         return self.hash
 
+    @profile
     def __eq__(self, other):
         return isinstance(other, type(self)) and hash(self) == hash(other)
 
@@ -169,6 +174,7 @@ class NodePartBuilder(object):
         self.meshpart = meshpart
         self.bones: typing.OrderedDict[str, model.BonePart] = collections.OrderedDict()
 
+    @profile
     def get_bonepart(self, bone: bpy.types.Bone) -> model.BonePart:
         """get or create bonepart"""
         bonepart = self.bones.get(bone.name, None)
@@ -179,6 +185,7 @@ class NodePartBuilder(object):
 
         return bonepart
 
+    @profile
     def count_bone(self, bones: Dict[str, bpy.types.Bone]) -> int:
         if not self.bones or not bones:
             return 0
@@ -189,6 +196,7 @@ class NodePartBuilder(object):
                 matches += 1
         return matches
 
+    @profile
     def build(self) -> model.GNodePart:
         part = model.GNodePart(self.material.id, self.meshpart.id)
         part.bones = list(self.bones.values())
@@ -229,6 +237,7 @@ class VertexInfo(object):
         """Used to determine the nodepart by bunch of face bones"""
         self.bones: Dict[str, VertexBoneGroup] = None
 
+    @profile
     def __hash__(self):
         return hash(self.vert)
 
@@ -252,6 +261,7 @@ class FaceInfo(object):
         self.vertices: List[VertexInfo] = list()
         self.material = material
 
+    @profile
     def setup(self, meta: MeshMetaInfo):
         """creates vertex builders"""
         for attr in meta.attributes:
@@ -271,6 +281,7 @@ class FaceInfo(object):
 
             self.vertices.append(info)
 
+    @profile
     def build(self, meta: MeshMetaInfo, nodepart: NodePartBuilder) -> typing.Generator[Vertex, None, None]:
         """produces vertices"""
         for v_info in self.vertices:
@@ -287,14 +298,17 @@ class AttributeBuilder(object):
     def flags(self) -> List[model.VertexFlag]:
         raise ValueError("not implemented")
 
+    @profile
     def begin_face(self):
         """stage 0: begin face"""
         pass
 
+    @profile
     def setup_vertex(self, info: VertexInfo):
         """stage 1: setup face vertices"""
         pass
 
+    @profile
     def filter_nodepart(self, part: NodePartBuilder) -> bool:
         """stage 2: determine nodepart"""
         return True
@@ -308,6 +322,7 @@ class PositionAttributeBuilder(AttributeBuilder):
     def flags(self):
         return [model.VertexFlag("POSITION", 3)]
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         data.extend(info.vert.co)
 
@@ -316,6 +331,7 @@ class NormalAttributeBuilder(AttributeBuilder):
     def flags(self):
         return [model.VertexFlag("NORMAL", 3)]
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         data.extend(info.vert.normal)
 
@@ -324,6 +340,7 @@ class TangentAttributeBuilder(AttributeBuilder):
     def flags(self):
         return [model.VertexFlag("TANGENT", 3)]
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         data.extend(info.loop.tangent)
 
@@ -332,6 +349,7 @@ class BiTangentAttributeBuilder(AttributeBuilder):
     def flags(self):
         return [model.VertexFlag("BINORMAL", 3)]
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         data.extend(info.loop.bitangent)
 
@@ -344,6 +362,7 @@ class ColorAttributeBuilder(AttributeBuilder):
         """uses active render slot"""
         self.layer = next(filter(lambda layer: layer.active_render, layers))
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         # TODO multiple colors
         data.extend(self.layer.data[info.loop.index].color)  # rgba
@@ -356,6 +375,7 @@ class PackedColorAttributeBuilder(ColorAttributeBuilder):
     def __init__(self, layers: List[bpy.types.MeshLoopColorLayer]):
         super().__init__(layers)
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         color = self.layer.data[info.loop.index].color
         data.append(self.pack(color))
@@ -374,6 +394,7 @@ class UvAttributeBuilder(AttributeBuilder):
         self.layer = next(filter(lambda layer: layer.active_render, layers))
         self.flip = flip
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         # TODO multiple uv
         uv = self.layer.data[info.loop.index].uv  # immutable
@@ -397,9 +418,11 @@ class BlendweightAttributeBuilder(AttributeBuilder):
     def flags(self):
         return [model.VertexFlag(f"BLENDWEIGHT{i}", 2) for i in range(self.length)]
 
+    @profile
     def begin_face(self):
         self._bones.clear()
 
+    @profile
     def setup_vertex(self, info: VertexInfo):
         """search bone weight by each group assigned to the vertex"""
         info.bones = dict()
@@ -422,6 +445,7 @@ class BlendweightAttributeBuilder(AttributeBuilder):
 
         info.norm_weights()
 
+    @profile
     def _get_valid_bone(self, group_element: bpy.types.VertexGroupElement) -> bpy.types.Bone:
         if group_element.weight <= 0:
             return None
@@ -432,6 +456,7 @@ class BlendweightAttributeBuilder(AttributeBuilder):
         # ensures that the group is real bone
         return self.armature_bones.get(group_name, None)
 
+    @profile
     def filter_nodepart(self, part: NodePartBuilder) -> bool:
         """here we need to find a part which can supply all bones of this face"""
         if not self._bones:
@@ -447,6 +472,7 @@ class BlendweightAttributeBuilder(AttributeBuilder):
             return True
         return False
 
+    @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
         # add vertex bones to nodepart and update bone index
         has_blendweights = False
@@ -473,6 +499,7 @@ class BlendweightAttributeBuilder(AttributeBuilder):
         for i in range(len(info.bones), self.length):
             data.extend(self._empty)
 
+    @profile
     def set_optimal_length(self, mesh: bpy.types.Mesh, limit: int):
         """find the max groups count assigned to any vertex to make optimal count of blendweights"""
         self.length = 0
@@ -520,6 +547,7 @@ class MeshNodeDataBuilder(object):
         g3mesh = self._get_g3mesh(meta)
         return self._convert(meta, g3mesh)
 
+    @profile
     def _convert(self, meta: MeshMetaInfo, g3mesh: G3MeshData) -> MeshNodeData:
         """converts blender mesh to g3d mesh"""
         meshdata = MeshNodeData()
@@ -539,40 +567,45 @@ class MeshNodeDataBuilder(object):
             for vert in face.build(meta, nodepart):
                 self._add_vertex(vert, g3mesh, nodepart.meshpart)
 
-        self._check_mesh_limits(g3mesh)
+            self._check_vertex_limits(g3mesh.vertices, self.opt.max_vertices_per_mesh)
+
+        self._check_parts_limits(g3mesh.parts, self.opt.max_vertices_per_mesh)
         return meshdata
 
+    @profile
     def _add_vertex(self, vert: Vertex, g3mesh: G3MeshData, meshpart: MeshpartData):
-        vert_index = g3mesh.vertex_index.get(vert, None)
+        vert_idx = g3mesh.vertex_index.get(vert, None)
 
         # add new vertex, reuse index else
-        if vert_index is None:
-            vert_index = len(g3mesh.vertices)
-            g3mesh.vertex_index[vert] = vert_index
+        if vert_idx is None:
+            vert_idx = len(g3mesh.vertices)
+            g3mesh.vertex_index[vert] = vert_idx
             g3mesh.vertices.append(vert)
 
             if g3mesh.shape is not None:
                 self._add_shapekeys(vert.original, g3mesh.shape)
 
-        vert_index = vert_index % self.opt.max_vertices_per_mesh
-        meshpart.indices.append(vert_index)
+        vert_idx = vert_idx % self.opt.max_vertices_per_mesh
+        meshpart.indices.append(vert_idx)
 
     def _add_shapekeys(self, vert: bpy.types.MeshVertex, shape: model.GShape):
         for key in shape.keys:
             key_vert = key.block.data[vert.index]
             key.positions.extend(key_vert.co)
 
-    def _check_mesh_limits(self, g3mesh: G3MeshData):
-        max = self.opt.max_vertices_per_mesh
-
-        if len(g3mesh.vertices) > max:
-            raise G3dError(f"The result mesh is too big {len(g3mesh.vertices)} > {max}")
-
-        for meshpart in g3mesh.parts.values():
+    @profile
+    def _check_parts_limits(self, parts: Dict[str, MeshpartData], max: int):
+        for meshpart in parts.values():
             if len(meshpart.indices) > max:
-                log.warning("the result indices is too big %d > %d: %d", len(meshpart.indices), max, meshpart.id)
+                log.warning("the result indices is too big %d > %d: %s", len(meshpart.indices), max, meshpart.id)
                 break
 
+    @profile
+    def _check_vertex_limits(self, vertices: List[Vertex], max: int):
+        if len(vertices) > max:
+            raise G3dError(f"The result mesh vertices is too big {len(vertices)} > {max}")
+
+    @profile
     def _analyze_mesh(self, obj: bpy.types.Object,
                       mesh: bpy.types.Mesh,
                       armature: bpy.types.Object) -> MeshMetaInfo:
@@ -614,6 +647,7 @@ class MeshNodeDataBuilder(object):
             meta.attributes.append(builder)
         return meta
 
+    @profile
     def _get_material(self, mat: bpy.types.Material) -> model.GMaterial:
         """get or create material"""
         material = self.g3data.materials.get(mat.name, None)
@@ -623,6 +657,7 @@ class MeshNodeDataBuilder(object):
             self.g3data.materials[mat.name] = material
         return material
 
+    @profile
     def _get_g3mesh(self, attrs: MeshMetaInfo) -> G3MeshData:
         """get or create g3mesh data"""
         shape_id = attrs.shape.id if attrs.shape else None
@@ -643,6 +678,7 @@ class MeshNodeDataBuilder(object):
     def _compute_gmesh_key(flags: Tuple[model.VertexFlag], shape_id) -> int:
         return hash((flags, shape_id))
 
+    @profile
     def _get_nodepart(self, meta: MeshMetaInfo, mat: model.GMaterial,
                       g3mesh: G3MeshData, nodeparts: List[NodePartBuilder]) -> NodePartBuilder:
         """get or create nodepart"""
@@ -660,6 +696,7 @@ class MeshNodeDataBuilder(object):
 
         return nodepart
 
+    @profile
     def _find_nodepart(self, attrs: List[AttributeBuilder], mat: model.GMaterial,
                        parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:
         """find part by material and bones included to it"""
@@ -670,6 +707,7 @@ class MeshNodeDataBuilder(object):
                 return part
         return None
 
+    @profile
     def _filter_nodeparts(self, attrs: List[AttributeBuilder], part: NodePartBuilder) -> bool:
         for attr in attrs:
             if not attr.filter_nodepart(part):
@@ -939,6 +977,7 @@ class G3Builder(object):
         else:
             log.debug("skip export for %s due type: %s", obj.name, obj.type)
 
+    @profile
     def _get_attached_armature(self, obj: bpy.types.Object, selected_only: bool) -> bpy.types.Object:
         """
         Ensures that the armature attached to the mesh object is also in the export list
@@ -950,6 +989,7 @@ class G3Builder(object):
                 return exist
         return None
 
+    @profile
     def _make(self) -> model.G3dModel:
         mod = model.G3dModel()
 
@@ -961,6 +1001,7 @@ class G3Builder(object):
 
         return mod
 
+    @profile
     def _make_meshes(self, mod: model.G3dModel):
         for g3mesh in self.data.meshes.values():
             mesh = model.GMesh(g3mesh.attributes)
@@ -979,6 +1020,7 @@ class G3Builder(object):
         for mat in self.data.materials.values():
             mod.materials.append(mat)
 
+    @profile
     def _make_nodes(self, mod: model.G3dModel):
         if self.opt.y_up:
             rot = Quaternion((-0.707, 0.707, 0, 0))
@@ -988,6 +1030,7 @@ class G3Builder(object):
 
         mod.nodes = self.data.nodes
 
+    @profile
     def _make_animations(self, model: model.G3dModel):
         model.animations = list(self.data.animations.values())
 
@@ -1047,6 +1090,7 @@ class BoneAction(object):
         return into
 
 
+@profile
 def triangulate(mesh: bpy.types.Mesh):
     bm = bmesh.new()
     bm.from_mesh(mesh)
@@ -1056,6 +1100,7 @@ def triangulate(mesh: bpy.types.Mesh):
     del bm
 
 
+@profile
 def evaluate(obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Object, bpy.types.Mesh]:
     """Returns final triangulated mesh with applied object modifiers if it has no any shape keys"""
     apply_modifiers = apply_modifiers and obj.data.shape_keys is None

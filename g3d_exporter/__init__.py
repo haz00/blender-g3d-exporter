@@ -20,6 +20,7 @@ if "bpy" in locals():
     importlib.reload(g3d_exporter.builder)
     importlib.reload(g3d_exporter.model)
     importlib.reload(g3d_exporter.export_operator)
+    importlib.reload(g3d_exporter.profiler)
 else:
     import bpy
     import g3d_exporter.common
@@ -27,6 +28,7 @@ else:
     import g3d_exporter.builder
     import g3d_exporter.model
     import g3d_exporter.export_operator
+    import g3d_exporter.profiler
 
 classes = [
     export_operator.G3djExportOperator,
