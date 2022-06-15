@@ -12,7 +12,7 @@ import shutil
 
 from g3d_exporter import builder
 from g3d_exporter.builder import ModelOptions
-from g3d_exporter.model import G3dModel, GShape
+from g3d_exporter.model import G3dModel, GShape, GModelShape
 from g3d_exporter.common import *
 from g3d_exporter import encoder
 
@@ -318,7 +318,8 @@ class G3djExportOperator(Operator, BaseG3dExportOperator):
         return write(data, filepath.with_suffix('.g3dj'), 'w')
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
-        data = encoder.encode_json({"shapes": shapes})
+        mod = GModelShape(filepath.name, shapes)
+        data = encoder.encode_json(mod)
         return write(data, filepath.with_suffix(".shapes"), 'w')
 
 
@@ -334,7 +335,8 @@ class G3dbExportOperator(Operator, BaseG3dExportOperator):
 
     def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
         # TODO binary too
-        data = encoder.encode_json({"shapes": shapes})
+        mod = GModelShape(filepath.name, shapes)
+        data = encoder.encode_json(mod)
         return write(data, filepath.with_suffix(".shapes"), 'w')
 
 

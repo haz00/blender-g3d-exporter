@@ -3186,7 +3186,7 @@
        ], 
       "parts": [ 
         {
-          "id": "grass mesh_part0", 
+          "id": "grass mesh_mesh0_part0", 
           "type": "TRIANGLES", 
           "indices": [ 
             0, 1, 2, 2, 1, 3, 3, 1, 4, 4, 1, 5, 
@@ -3937,7 +3937,7 @@
            ]
         }, 
         {
-          "id": "tree mesh_part1", 
+          "id": "tree mesh_mesh0_part1", 
           "type": "TRIANGLES", 
           "indices": [ 
             3120, 3121, 3122, 3120, 3123, 3121, 3124, 3125, 3126, 3124, 3127, 3125, 
@@ -5216,7 +5216,7 @@
        ], 
       "parts": [ 
         {
-          "id": "Cube.002_part0", 
+          "id": "Cube.002_mesh1_part0", 
           "type": "TRIANGLES", 
           "indices": [ 
             0, 1, 2, 3, 4, 1, 2, 5, 6, 1, 7, 5, 
@@ -6194,7 +6194,7 @@
        ], 
       "parts": [ 
         {
-          "id": "body mesh_part0", 
+          "id": "body mesh_mesh2_part0", 
           "type": "TRIANGLES", 
           "indices": [ 
             0, 1, 2, 0, 3, 4, 4, 5, 1, 4, 6, 7, 
@@ -6942,7 +6942,7 @@
        ], 
       "parts": [ 
         {
-          "id": "head mesh_part0", 
+          "id": "head mesh_mesh3_part0", 
           "type": "TRIANGLES", 
           "indices": [ 
             0, 1, 2, 2, 6, 7, 1, 10, 6, 12, 13, 1, 
@@ -6963,7 +6963,7 @@
            ]
         }, 
         {
-          "id": "head mesh_part1", 
+          "id": "head mesh_mesh3_part1", 
           "type": "TRIANGLES", 
           "indices": [ 
             3, 4, 5, 8, 5, 9, 11, 3, 8, 14, 15, 3, 
@@ -6984,7 +6984,7 @@
            ]
         }, 
         {
-          "id": "head mesh_part2", 
+          "id": "head mesh_mesh3_part2", 
           "type": "TRIANGLES", 
           "indices": [ 
             66, 67, 68, 69, 67, 70, 71, 68, 72, 73, 74, 69, 
@@ -7279,7 +7279,7 @@
       "translation": [  3.282927,  0.000000,  0.000000 ], 
       "parts": [ 
         {
-          "meshpartid": "grass mesh_part0", 
+          "meshpartid": "grass mesh_mesh0_part0", 
           "materialid": "Material", 
           "uvMapping": [ [  ] ]
         } ]
@@ -7291,7 +7291,7 @@
       "translation": [  0.000000,  0.000000,  0.000000 ], 
       "parts": [ 
         {
-          "meshpartid": "Cube.002_part0", 
+          "meshpartid": "Cube.002_mesh1_part0", 
           "materialid": "uv-checker", 
           "bones": [ 
             {
@@ -7316,7 +7316,7 @@
       "translation": [  0.000000,  0.000000,  0.000000 ], 
       "parts": [ 
         {
-          "meshpartid": "body mesh_part0", 
+          "meshpartid": "body mesh_mesh2_part0", 
           "materialid": "uv-checker", 
           "bones": [ 
             {
@@ -7353,7 +7353,7 @@
       "translation": [  0.000000,  0.000000,  0.000000 ], 
       "parts": [ 
         {
-          "meshpartid": "head mesh_part0", 
+          "meshpartid": "head mesh_mesh3_part0", 
           "materialid": "z-", 
           "bones": [ 
             {
@@ -7377,7 +7377,7 @@
           "uvMapping": [ [  ] ]
         }, 
         {
-          "meshpartid": "head mesh_part1", 
+          "meshpartid": "head mesh_mesh3_part1", 
           "materialid": "x", 
           "bones": [ 
             {
@@ -7401,7 +7401,7 @@
           "uvMapping": [ [  ] ]
         }, 
         {
-          "meshpartid": "head mesh_part2", 
+          "meshpartid": "head mesh_mesh3_part2", 
           "materialid": "uv-checker", 
           "bones": [ 
             
@@ -7552,7 +7552,7 @@
       "translation": [  1.058811,  1.485342,  0.000000 ], 
       "parts": [ 
         {
-          "meshpartid": "tree mesh_part1", 
+          "meshpartid": "tree mesh_mesh0_part1", 
           "materialid": "tree", 
           "uvMapping": [ [  ] ]
         } ]

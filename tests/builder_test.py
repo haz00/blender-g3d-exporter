@@ -16,27 +16,25 @@ class G3dBuilderTest(BaseTest):
         self.assertNotEqual(a, c)
 
     def test_meshkey(self):
-        a = bpy.data.objects.new("a", bpy.data.meshes.new("a"))
-        b = bpy.data.objects.new("b", bpy.data.meshes.new("b"))
-        b2 = bpy.data.objects.new("b", b.data)
+        obj1 = add_triangle("obj1")
 
-        a_mesh = evaluate(a, True)[1]
-        b_mesh = evaluate(b, True)[1]
-        b2_mesh = evaluate(b2, True)[1]
+        obj2 = add_triangle("obj2")
+        obj2_1 = add_triangle("obj2_1", obj2.data)
 
-        self.assertNotEqual(hash(a_mesh), hash(b_mesh))
-        self.assertEqual(hash(b2_mesh), hash(b_mesh))
+        obj2_2 = add_triangle("obj2_2", obj2.data)
+        obj2_2.modifiers.new('solidify', 'SOLIDIFY')
 
-    def test_mergekey(self):
-        a = MeshNodeDataBuilder._compute_gmesh_key(tuple([VertexFlag("a", 2)]), None)
-        b = MeshNodeDataBuilder._compute_gmesh_key(tuple([VertexFlag("a", 2)]), None)
-        c = MeshNodeDataBuilder._compute_gmesh_key(tuple([VertexFlag("a", 4)]), None)
+        obj1_mesh = evaluate(obj1, True)[1]
+        obj2_mesh = evaluate(obj2, True)[1]
+        obj2_1_mesh = evaluate(obj2_1, True)[1]
+        obj2_2_mesh = evaluate(obj2_2, True)[1]
 
-        self.assertEqual(hash(a), hash(b))
-        self.assertEqual(a, b)
+        self.assertNotEqual(hash(obj1_mesh), hash(obj2_mesh))
 
-        self.assertNotEqual(a, c)
-        self.assertNotEqual(hash(a), hash(c))
+        self.assertEqual(hash(obj2_mesh), hash(obj2_1_mesh))
+
+        self.assertNotEqual(hash(obj2_mesh), hash(obj2_2_mesh))
+        self.assertEqual(obj2_mesh.name, obj2_2_mesh.name)
 
     def test_material(self):
         mat = bpy.data.materials.new("test_material")
@@ -146,30 +144,43 @@ class G3dBuilderTest(BaseTest):
     def test_collection_instance(self):
         """
         Outliner:
-        test_collection_instance/ : excluded
+        collection/ : excluded
             obj1
-        test_collection_instance
+            inner_collection
+        inner_collection/ : excluded
+            obj2
+        collection
         """
-        collection = add_collection(self.test_collection_instance.__name__)
+        inner_collection = add_collection("inner_collection")
+        bpy.context.view_layer.layer_collection.children[inner_collection.name].exclude = True
+
+        obj2 = add_triangle("obj2")
+        move_to_collection(obj2, inner_collection.name)
+
+        collection = add_collection("collection")
         bpy.context.view_layer.layer_collection.children[collection.name].exclude = True
+        collection_instance = add_collection_instance(collection.name)
 
         obj1 = add_triangle("obj1")
         move_to_collection(obj1, collection.name)
 
-        empty1 = add_collection_instance(collection.name)
+        inner_collection_instance = add_collection_instance(inner_collection.name)
+        move_to_collection(inner_collection_instance, collection.name)
 
-        opt = ModelOptions()
-        opt.selected_only = True
-
-        mod = builder.build(opt)
+        mod = builder.build(ModelOptions())
         dump_model(self.test_collection_instance.__name__, mod)
 
         self.assertEqual(len(mod.meshes), 1)
         self.assertEqual(mod.meshes[0].vertex_count(), 3)
-        self.assertEqual(len(mod.meshes[0].parts), 1)
+        self.assertEqual(len(mod.meshes[0].parts), 2)
 
         self.assertEqual(len(mod.nodes), 1)
-        self.assertEqual(len(mod.nodes[0].children), 1)
+        self.assertEqual(len(mod.nodes[0].children), 2)
+        self.assertEqual(mod.nodes[0].children[0].id, "collection|obj1")
+        self.assertEqual(mod.nodes[0].children[1].id, "collection|inner_collection")
+
+        self.assertEqual(len(mod.nodes[0].children[1].children), 1)
+        self.assertEqual(mod.nodes[0].children[1].children[0].id, "collection|inner_collection|obj2")
 
     def test_armature_node(self):
         """
@@ -210,7 +221,7 @@ class G3dBuilderTest(BaseTest):
 
         self._check_node_chain(mod.nodes[0], expect_parent)
 
-    def test_skinned_mesh_split_nodepart(self):
+    def test_skinned_mesh_new_nodepart_by_bones_count(self):
         """
         Outliner:
         armature
@@ -240,7 +251,7 @@ class G3dBuilderTest(BaseTest):
         obj1.vertex_groups['Bone.005'].add([5], 0.5, 'REPLACE')
 
         mod = builder.build(opt)
-        dump_model(self.test_skinned_mesh_split_nodepart.__name__, mod)
+        dump_model(self.test_skinned_mesh_new_nodepart_by_bones_count.__name__, mod)
 
         self.assertEqual(len(mod.meshes), 1)
         self.assertEqual(len(mod.meshes[0].parts), 2)
@@ -358,9 +369,9 @@ class G3dBuilderTest(BaseTest):
         obj2
         """
 
-        obj1 = add_triangle("obj1")
+        obj1 = add_triangle("obj1", count=2)
         k = obj1.shape_key_add(name="Basis")
-        k = obj1.shape_key_add(name="Key")
+        k = obj1.shape_key_add(name="Key 1")
         for i in range(len(obj1.data.vertices)):
             k.data[i].co.x = 20
             k.data[i].co.y = 10
@@ -371,20 +382,21 @@ class G3dBuilderTest(BaseTest):
 
         opt = ModelOptions()
         opt.selected_only = True
+        opt.max_vertices_per_mesh = 3
 
         mod = builder.build(opt)
         dump_model(self.test_shapekeys.__name__, mod)
 
-        self.assertEqual(len(mod.meshes), 2)
-        self.assertEqual(len(mod.shapes), 2)
+        self.assertEqual(len(mod.meshes), 3)
         self.assertEqual(len(mod.shapes[0].keys), 2)
         self.assertEqual(len(mod.shapes[1].keys), 1)
 
-        self.assertEqual(mod.shapes[0].keys[1].name, "Key")
-        self.assertEqual(len(mod.shapes[0].keys[1].positions), 3 * 3)
-        self.assertAlmostEqual(mod.shapes[0].keys[1].positions[0], 20.000, 3)
-        self.assertAlmostEqual(mod.shapes[0].keys[1].positions[1], 10.000, 3)
-        self.assertAlmostEqual(mod.shapes[0].keys[1].positions[2], -10.000, 3)
+        self.assertEqual(mod.shapes[0].keys[1].name, "Key 1")
+        self.assertEqual(len(mod.shapes[0].keys[1].parts), 2)
+        self.assertEqual(len(mod.shapes[0].keys[1].parts[0].positions), 3 * 3)
+        self.assertAlmostEqual(mod.shapes[0].keys[1].parts[0].positions[0], 20.000, 3)
+        self.assertAlmostEqual(mod.shapes[0].keys[1].parts[0].positions[1], 10.000, 3)
+        self.assertAlmostEqual(mod.shapes[0].keys[1].parts[0].positions[2], -10.000, 3)
 
     def _check_node_chain(self, test: GNode, expect: GNode):
         self.assertEqual(test.id, expect.id)
@@ -416,6 +428,47 @@ class MeshNodeDataBuilderTest(BaseTest):
             VertexFlag("TEXCOORD0", 2),
         )
         self.assertEqual(attrs.flags(), expect_flags)
+
+    def test_new_nodepart_by_index_limit(self):
+        obj = add_triangle("test_new_nodepart_by_index_limit", count=2)
+
+        opt = ModelOptions()
+        opt.max_indices_per_meshpart = 3
+
+        mod = builder.build(opt)
+
+        dump_model(self.test_new_nodepart_by_index_limit.__name__, mod)
+
+        self.assertEqual(len(mod.nodes[0].parts), 2)
+        self.assertEqual(len(mod.meshes[0].parts), 2)
+        self.assertEqual(mod.meshes[0].parts[1].indices[0], 3)
+        self.assertEqual(mod.meshes[0].parts[1].indices[1], 4)
+        self.assertEqual(mod.meshes[0].parts[1].indices[2], 5)
+
+    def test_new_mesh_by_vertex_limit(self):
+        obj = add_triangle("test_new_mesh_by_vertex_limit", count=2)
+
+        opt = ModelOptions()
+        opt.max_vertices_per_mesh = 3
+
+        mod = builder.build(opt)
+
+        dump_model(self.test_new_mesh_by_vertex_limit.__name__, mod)
+
+        self.assertEqual(len(mod.nodes[0].parts), 2)
+        self.assertNotEqual(mod.nodes[0].parts[0].meshpart, mod.nodes[0].parts[1].meshpart)
+
+        self.assertEqual(len(mod.meshes), 2)
+        self.assertEqual(len(mod.meshes[0].parts), 1)
+        self.assertEqual(len(mod.meshes[1].parts), 1)
+
+        self.assertEqual(mod.meshes[0].parts[0].indices[0], 0)
+        self.assertEqual(mod.meshes[0].parts[0].indices[1], 1)
+        self.assertEqual(mod.meshes[0].parts[0].indices[2], 2)
+
+        self.assertEqual(mod.meshes[1].parts[0].indices[0], 0)
+        self.assertEqual(mod.meshes[1].parts[0].indices[1], 1)
+        self.assertEqual(mod.meshes[1].parts[0].indices[2], 2)
 
 
 class BlendweightAttributeBuilderTest(BaseTest):

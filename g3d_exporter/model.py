@@ -1,18 +1,18 @@
 # <pep8 compliant>
+import collections
 
 import bpy
 
 from typing import Dict, Tuple
 
-import g3d_exporter.profiler
 from g3d_exporter.common import *
 from g3d_exporter.profiler import profile
 
 
 class GShape(object):
     """represents blender 'Shape Keys' panel"""
-    def __init__(self, id: str, shape_key: bpy.types.Key):
-        self.id: str = id
+    def __init__(self, node_id: str, shape_key: bpy.types.Key):
+        self.node_id: str = node_id
         self.keys: List[GShapeKey] = []
         self.shape_key: bpy.types.Key = shape_key
 
@@ -22,23 +22,47 @@ class GShape(object):
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
-        root['id'] = self.id
+        root['id'] = self.node_id
         root['keys'] = self.keys
+        return root
+
+
+class GModelShape(object):
+    def __init__(self, id: str, shapes: List[GShape]):
+        self.id = id
+        self.shapes = shapes
+
+    def to_dict(self) -> Dict[str, Any]:
+        root = dict()
+        root['id'] = self.id
+        root['shapes'] = self.shapes
+        return root
+
+
+class GShapeKeyPart(object):
+    """represents one slot in 'Shape Keys' panel"""
+    def __init__(self, mesh_index: int):
+        self.mesh_index = mesh_index
+        self.positions: List[float] = list()
+
+    def to_dict(self) -> Dict[str, Any]:
+        root = dict()
+        root['mesh'] = self.mesh_index
+        root['positions'] = self.positions
         return root
 
 
 class GShapeKey(object):
     """represents one slot in 'Shape Keys' panel"""
-
     def __init__(self, name: str, block: bpy.types.ShapeKey):
         self.name = name
         self.block = block
-        self.positions: List[float] = list()
+        self.parts: collections.OrderedDict[int, GShapeKeyPart] = collections.OrderedDict()
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
         root['name'] = self.name
-        root['positions'] = self.positions
+        root['parts'] = list(self.parts.values())
         return root
 
 

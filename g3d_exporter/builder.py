@@ -36,6 +36,7 @@ class ModelOptions(object):
         self.bones_per_vertex = 4
         self.max_bones_per_nodepart = 12
         self.max_vertices_per_mesh = 32767
+        self.max_indices_per_meshpart = 32767
         self.use_shapekeys = True
         self.use_actions = True
         self.add_bone_tip = True
@@ -50,21 +51,22 @@ def build(opt: ModelOptions) -> model.G3dModel:
 
 
 class G3MeshData(object):
-    def __init__(self, attributes: Tuple[model.VertexFlag]) -> None:
+    def __init__(self, index: int, attributes: Tuple[model.VertexFlag], shape: model.GShape) -> None:
+        self.index = index
         self.attributes = attributes
         self.vertices: List[Vertex] = list()
         self.vertex_index: Dict[int, int] = dict()
         self.parts: Dict[str, MeshpartData] = dict()
-        self.shape: model.GShape = None
+        self.shape = shape
 
     def __str__(self):
-        return ", ".join([str(a) for a in self.attributes])
+        return f"{self.index}; {', '.join([str(a) for a in self.attributes])}; shape {self.shape is not None}"
 
 
 class MeshpartData(object):
-    def __init__(self, id: str, primitive_type: str, meshdata: G3MeshData) -> None:
+    def __init__(self, id: str, primitive_type: str, g3mesh: G3MeshData) -> None:
         self.id = id
-        self.meshdata = meshdata
+        self.g3mesh = g3mesh
         self.primitive_type = primitive_type
         self.indices: List[int] = list()
 
@@ -83,7 +85,7 @@ class G3Data(object):
     def __init__(self):
         self.animations: Dict[str, model.GAnimation] = dict()
         self.materials: Dict[str, model.GMaterial] = dict()
-        self.meshes: Dict[int, G3MeshData] = dict()
+        self.meshes: List[G3MeshData] = list()
         self.mesh_node_data: Dict[int, MeshNodeData] = dict()
         self.nodes: List[model.GNode] = list()
 
@@ -204,11 +206,14 @@ class MeshMetaInfo(object):
         self.obj = obj
         self.mesh = mesh
         self.armature = armature
-        self.attributes: List[AttributeBuilder] = list()
         self.shape: model.GShape = None
+        self.attributes: List[AttributeBuilder] = list()
+        self._flags_cached: Tuple[model.VertexFlag] = None
 
     def flags(self) -> Tuple[model.VertexFlag]:
-        return tuple(flatten([b.flags() for b in self.attributes]))
+        if self._flags_cached is None:
+            self._flags_cached = tuple(flatten([b.flags() for b in self.attributes]))
+        return self._flags_cached
 
 
 class VertexBoneGroup:
@@ -256,6 +261,7 @@ class FaceInfo(object):
         self.opt = opt
         self.vertices: List[VertexInfo] = list()
         self.material = material
+        self.size = 0
 
     @profile
     def setup(self, meta: MeshMetaInfo):
@@ -268,6 +274,8 @@ class FaceInfo(object):
             loop: bpy.types.MeshLoop = meta.mesh.loops[loop_idx]
 
             self.vertices.append(VertexInfo(vert, loop, meta.obj, meta.mesh, self.opt))
+        # cache size
+        self.size = len(self.vertices)
 
     @profile
     def build(self, meta: MeshMetaInfo, nodepart: NodePartBuilder) -> typing.Generator[Vertex, None, None]:
@@ -515,6 +523,8 @@ class MeshNodeDataBuilder(object):
         self.material_builder = MaterialBuilder(g3data, opt)
         self._face_listeners: List[FaceListener] = list()
         self._nodepart_filters: List[NodePartFilter] = list()
+        self._g3mesh: G3MeshData = None # cache
+        self._nodepart: NodePartBuilder = None # cache
 
     def build(self, obj: bpy.types.Object,
               mesh: bpy.types.Mesh,
@@ -530,11 +540,10 @@ class MeshNodeDataBuilder(object):
             return None
 
         meta = self._analyze_mesh(obj, mesh, armature)
-        g3mesh = self._get_g3mesh(meta)
-        return self._convert(meta, g3mesh)
+        return self._convert(meta)
 
     @profile
-    def _convert(self, meta: MeshMetaInfo, g3mesh: G3MeshData) -> MeshNodeData:
+    def _convert(self, meta: MeshMetaInfo) -> MeshNodeData:
         """converts blender mesh to g3d mesh"""
         meshdata = MeshNodeData()
         mesh = meta.mesh
@@ -551,14 +560,12 @@ class MeshNodeDataBuilder(object):
             for ls in self._face_listeners:
                 ls.on_new_face(face)
 
-            nodepart = self._get_nodepart(meta, material, g3mesh, meshdata.parts)
+            g3mesh = self._get_g3mesh(meta, face)
+            nodepart = self._get_nodepart(meta, g3mesh, face, meshdata.parts)
 
             for vert in face.build(meta, nodepart):
                 self._add_vertex(vert, g3mesh, nodepart.meshpart)
 
-            self._check_vertex_limits(g3mesh.vertices, self.opt.max_vertices_per_mesh)
-
-        self._check_parts_limits(g3mesh.parts, self.opt.max_vertices_per_mesh)
         return meshdata
 
     @profile
@@ -573,28 +580,21 @@ class MeshNodeDataBuilder(object):
             g3mesh.vertices.append(vert)
 
             if g3mesh.shape is not None:
-                self._add_shapekeys(vert.original, g3mesh.shape)
+                self._add_shapekeys(vert.original, g3mesh)
 
-        vert_idx = vert_idx % self.opt.max_vertices_per_mesh
         meshpart.indices.append(vert_idx)
 
     @profile
-    def _add_shapekeys(self, vert: bpy.types.MeshVertex, shape: model.GShape):
-        for key in shape.keys:
-            key_vert = key.block.data[vert.index]
-            key.positions.extend(key_vert.co)
+    def _add_shapekeys(self, vert: bpy.types.MeshVertex, g3mesh: G3MeshData):
+        for key in g3mesh.shape.keys:
+            pos = key.block.data[vert.index].co
 
-    @profile
-    def _check_parts_limits(self, parts: Dict[str, MeshpartData], max: int):
-        for meshpart in parts.values():
-            if len(meshpart.indices) > max:
-                log.warning("the result indices is too big %d > %d: %s", len(meshpart.indices), max, meshpart.id)
-                break
+            part = key.parts.get(g3mesh.index, None)
+            if not part:
+                part = model.GShapeKeyPart(g3mesh.index)
+                key.parts[g3mesh.index] = part
 
-    @profile
-    def _check_vertex_limits(self, vertices: List[Vertex], max: int):
-        if len(vertices) > max:
-            raise G3dError(f"The result mesh vertices is too big {len(vertices)} > {max}")
+            part.positions.extend(pos)
 
     @profile
     def _analyze_mesh(self, obj: bpy.types.Object,
@@ -606,7 +606,8 @@ class MeshNodeDataBuilder(object):
         meta.attributes.append(PositionAttributeBuilder())
 
         if self.opt.use_shapekeys and mesh.shape_keys:
-            meta.shape = model.GShape(mesh.name, mesh.shape_keys)
+            # FIXME unique node name
+            meta.shape = model.GShape(obj.name, mesh.shape_keys)
 
         if self.opt.use_normal:
             meta.attributes.append(NormalAttributeBuilder())
@@ -651,54 +652,76 @@ class MeshNodeDataBuilder(object):
         return material
 
     @profile
-    def _get_g3mesh(self, attrs: MeshMetaInfo) -> G3MeshData:
-        """get or create g3mesh data"""
-        shape_id = attrs.shape.id if attrs.shape else None
+    def _get_g3mesh(self, meta: MeshMetaInfo, face: FaceInfo) -> G3MeshData:
+        """get or create g3mesh"""
 
-        flags = attrs.flags()
-        key = self._compute_gmesh_key(flags, shape_id)
-        g3mesh = self.g3data.meshes.get(key, None)
+        # check if its still valid
+        if self._g3mesh is not None:
+            if self._validate_g3mesh(self._g3mesh, face):
+                return self._g3mesh
+            else:
+                self._g3mesh = None
 
-        if not g3mesh:
-            g3mesh = G3MeshData(flags)
-            g3mesh.shape = attrs.shape
-            self.g3data.meshes[key] = g3mesh
-            log.debug("add g3mesh: %d = %s; shape: %s", key, g3mesh, g3mesh.shape is not None)
+        # cache other if not
+        for g3mesh in self.g3data.meshes:
+            if self._validate_g3mesh(g3mesh, face) and meta.shape == g3mesh.shape and meta.flags() == g3mesh.attributes:
+                self._g3mesh = g3mesh
+                return self._g3mesh
 
-        return g3mesh
+        # create new if not found
+        self._g3mesh = G3MeshData(len(self.g3data.meshes), meta.flags(), meta.shape)
+        self.g3data.meshes.append(self._g3mesh)
+        log.debug("add g3mesh: %s", self._g3mesh)
+        return self._g3mesh
 
-    @staticmethod
-    def _compute_gmesh_key(flags: Tuple[model.VertexFlag], shape_id) -> int:
-        return hash((flags, shape_id))
+    def _validate_g3mesh(self, g3mesh: G3MeshData, face: FaceInfo):
+        # FIXME not critical but better to check if vertices already in mesh
+        return len(g3mesh.vertices) + face.size <= self.opt.max_vertices_per_mesh
 
     @profile
-    def _get_nodepart(self, meta: MeshMetaInfo, mat: model.GMaterial,
-                      g3mesh: G3MeshData, nodeparts: List[NodePartBuilder]) -> NodePartBuilder:
+    def _get_nodepart(self, meta: MeshMetaInfo, g3mesh: G3MeshData,
+                      face: FaceInfo, nodeparts: List[NodePartBuilder]) -> NodePartBuilder:
         """get or create nodepart"""
-        nodepart = self._find_nodepart(mat, nodeparts)
+        nodepart = self._find_nodepart(face, g3mesh, nodeparts)
 
         if not nodepart:
-            meshpartid = f"{meta.mesh.name}_part{len(g3mesh.parts)}"
+            meshpartid = f"{meta.mesh.name}_mesh{g3mesh.index}_part{len(g3mesh.parts)}"
 
             meshpart = MeshpartData(meshpartid, self.opt.primitive_type, g3mesh)
             g3mesh.parts[meshpartid] = meshpart
 
-            nodepart = NodePartBuilder(mat, meshpart)
+            nodepart = NodePartBuilder(face.material, meshpart)
             nodeparts.append(nodepart)
             log.debug("%s add nodepart: %d", meta.obj.name, len(nodeparts))
 
         return nodepart
 
     @profile
-    def _find_nodepart(self, mat: model.GMaterial, parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:
-        """find part by material and bones included to it"""
+    def _find_nodepart(self, face: FaceInfo, g3mesh: G3MeshData, parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:
+        """find part by material, vacant indices and bones included to it"""
+
+        # check if still valid
+        if self._nodepart:
+            if self._validate_nodepart(self._nodepart, g3mesh, face):
+                return self._nodepart
+            else:
+                self._nodepart = None
+
+        # cache other if not
         for part in parts:
-            if part.material == mat and self._filter_nodeparts(part):
+            if self._validate_nodepart(part, g3mesh, face):
+                self._nodepart = part
                 return part
         return None
 
+    def _validate_nodepart(self, part: NodePartBuilder, g3mesh: G3MeshData, face: FaceInfo):
+        return part.meshpart.g3mesh == g3mesh \
+                and part.material == face.material \
+                and len(part.meshpart.indices) + len(face.vertices) <= self.opt.max_indices_per_meshpart \
+                and self._validate_nodepart_filters(part)
+
     @profile
-    def _filter_nodeparts(self, part: NodePartBuilder) -> bool:
+    def _validate_nodepart_filters(self, part: NodePartBuilder) -> bool:
         for filter in self._nodepart_filters:
             if not filter.filter_nodepart(part):
                 return False
@@ -710,8 +733,8 @@ class NodeBuilder(object):
     def __init__(self, obj: bpy.types.Object):
         self.obj = obj
 
-    def build(self) -> model.GNode:
-        node = model.GNode(self.obj.name)
+    def build(self, id_prefix: str) -> model.GNode:
+        node = model.GNode(id_prefix + self.obj.name)
 
         mx: Matrix = self.obj.matrix_world
         if self.obj.parent:
@@ -728,8 +751,8 @@ class MeshNodeBuilder(NodeBuilder):
         super().__init__(obj)
         self.meshdata = meshdata
 
-    def build(self) -> model.GNode:
-        node = super().build()
+    def build(self, id_prefix: str) -> model.GNode:
+        node = super().build(id_prefix)
         if not self.meshdata:
             log.warning("meshnode has no meshdata: %s", node.id)
         else:
@@ -745,8 +768,8 @@ class ArmatureNodeBuilder(NodeBuilder):
         self.g3data = g3data
         self.opt = opt
 
-    def build(self) -> model.GNode:
-        node = super().build()
+    def build(self, id_prefix: str) -> model.GNode:
+        node = super().build(id_prefix)
 
         self._add_armature_tree(node)
 
@@ -876,7 +899,7 @@ class G3Builder(object):
             log.debug("skip hidden collection: %s", layer_col.name)
             return
 
-        for node in self._process_collection(layer_col.collection, False, self.opt.selected_only):
+        for node in self._process_collection(layer_col.collection, False, self.opt.selected_only, ""):
             yield node
 
         for lc in layer_col.children:
@@ -885,7 +908,8 @@ class G3Builder(object):
 
     def _process_collection(self, collection: bpy.types.Collection,
                             with_children: bool,
-                            selected_only: bool) -> typing.Generator[model.GNode, None, None]:
+                            selected_only: bool,
+                            id_prefix: str) -> typing.Generator[model.GNode, None, None]:
         if collection.hide_viewport:
             log.debug("skip hidden collection: %s", collection.name)
             return
@@ -894,16 +918,17 @@ class G3Builder(object):
 
         for obj in collection.objects:
             if not obj.parent or collection not in obj.parent.users_collection:
-                for node in self._process_object(obj, selected_only):
+                for node in self._process_object(obj, selected_only, id_prefix):
                     yield node
 
         if with_children:
             for child in collection.children:
-                for node in self._process_collection(child, with_children, selected_only):
+                for node in self._process_collection(child, with_children, selected_only, id_prefix):
                     yield node
 
     def _process_object(self, obj: bpy.types.Object,
-                        selected_only: bool) -> typing.Generator[model.GNode, None, None]:
+                        selected_only: bool,
+                        id_prefix: str) -> typing.Generator[model.GNode, None, None]:
 
         if obj.hide_viewport:
             log.debug("skip hidden object: %s", obj.name)
@@ -927,22 +952,22 @@ class G3Builder(object):
                 meshdata = MeshNodeDataBuilder(self.data, self.opt).build(eval_obj, eval_mesh, armature)
                 self.data.mesh_node_data[meshdata_key] = meshdata
 
-            node = MeshNodeBuilder(obj, meshdata).build()
+            node = MeshNodeBuilder(obj, meshdata).build(id_prefix)
             log.debug("new node %s", node.id)
 
             for child_obj in obj.children:
-                for child_node in self._process_object(child_obj, selected_only):
+                for child_node in self._process_object(child_obj, selected_only, id_prefix):
                     node.children.append(child_node)
                     log.debug("add child node to %s: %s", node.id, child_node.id)
 
             yield node
 
         elif obj.type == 'ARMATURE':
-            node = ArmatureNodeBuilder(obj, self.data, self.opt).build()
+            node = ArmatureNodeBuilder(obj, self.data, self.opt).build(id_prefix)
             log.debug("new node %s", node.id)
 
             for child_obj in obj.children:
-                for child_node in self._process_object(child_obj, selected_only):
+                for child_node in self._process_object(child_obj, selected_only, id_prefix):
                     log.debug("handle armature child %s: %s", node.id, child_node.id)
                     # armature child should stay at the same level as armature
                     yield child_node
@@ -950,16 +975,17 @@ class G3Builder(object):
             yield node
 
         elif obj.type == 'EMPTY':
-            node = NodeBuilder(obj).build()
+            node = NodeBuilder(obj).build(id_prefix)
             log.debug("new node %s", node.id)
 
             if obj.instance_collection is not None:
-                for child_node in self._process_collection(obj.instance_collection, True, False):
+                next_prefix = node.id + "|"
+                for child_node in self._process_collection(obj.instance_collection, True, False, next_prefix):
                     node.children.append(child_node)
                     log.debug("add child node to %s: %s", node.id, child_node.id)
             else:
                 for child_obj in obj.children:
-                    for child_node in self._process_object(child_obj, False):
+                    for child_node in self._process_object(child_obj, False, id_prefix):
                         node.children.append(child_node)
                         log.debug("add child node to %s: %s", node.id, child_node.id)
             yield node
@@ -992,7 +1018,7 @@ class G3Builder(object):
 
     @profile
     def _make_meshes(self, mod: model.G3dModel):
-        for g3mesh in self.data.meshes.values():
+        for g3mesh in self.data.meshes:
             mesh = model.GMesh(g3mesh.attributes)
 
             for v in g3mesh.vertices:
@@ -1024,8 +1050,10 @@ class G3Builder(object):
         mod.animations = list(self.data.animations.values())
 
     def _make_shapekeys(self, mod: model.G3dModel):
-        for mesh in self.data.meshes.values():
-            if mesh.shape:
+        shapes = set()
+        for mesh in self.data.meshes:
+            if mesh.shape and mesh.shape not in shapes:
+                shapes.add(mesh.shape)
                 mod.shapes.append(mesh.shape)
 
 
