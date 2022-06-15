@@ -15,7 +15,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(a, b)
         self.assertNotEqual(a, c)
 
-    # @unittest.skip("skip")
     def test_meshkey(self):
         a = bpy.data.objects.new("a", bpy.data.meshes.new("a"))
         b = bpy.data.objects.new("b", bpy.data.meshes.new("b"))
@@ -28,7 +27,6 @@ class G3dBuilderTest(BaseTest):
         self.assertNotEqual(hash(a_mesh), hash(b_mesh))
         self.assertEqual(hash(b2_mesh), hash(b_mesh))
 
-    # @unittest.skip("skip")
     def test_mergekey(self):
         a = MeshNodeDataBuilder._compute_gmesh_key(tuple([VertexFlag("a", 2)]), None)
         b = MeshNodeDataBuilder._compute_gmesh_key(tuple([VertexFlag("a", 2)]), None)
@@ -40,7 +38,6 @@ class G3dBuilderTest(BaseTest):
         self.assertNotEqual(a, c)
         self.assertNotEqual(hash(a), hash(c))
 
-    # @unittest.skip("skip")
     def test_material(self):
         mat = bpy.data.materials.new("test_material")
         # TODO construct material by code
@@ -52,7 +49,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(len(gmat.textures), 0)
         self.assertEqual(len(gmat.attributes), 0)
 
-    # @unittest.skip("skip")
     def test_parent(self):
         """
         Outliner:
@@ -77,7 +73,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(len(mod.nodes), 1)
         self.assertEqual(len(mod.nodes[0].children), 1)
 
-    # @unittest.skip("skip")
     def test_linked(self):
         """
         Outliner:
@@ -100,7 +95,6 @@ class G3dBuilderTest(BaseTest):
 
         self.assertEqual(len(mod.nodes), 2)
 
-    # @unittest.skip("skip")
     def test_linked_with_modifiers(self):
         obj1 = add_triangle("obj1")
         obj2 = add_triangle("obj2", mesh=obj1.data, mat=obj1.data.materials[0])
@@ -118,7 +112,6 @@ class G3dBuilderTest(BaseTest):
 
         self.assertEqual(len(mod.nodes), 2)
 
-    # @unittest.skip("skip")
     def test_collection(self):
         """
         Outliner:
@@ -150,7 +143,6 @@ class G3dBuilderTest(BaseTest):
 
         self.assertEqual(len(mod.nodes), 2)
 
-    # @unittest.skip("skip")
     def test_collection_instance(self):
         """
         Outliner:
@@ -179,7 +171,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(len(mod.nodes), 1)
         self.assertEqual(len(mod.nodes[0].children), 1)
 
-    # @unittest.skip("skip")
     def test_armature_node(self):
         """
         Outliner:
@@ -219,7 +210,6 @@ class G3dBuilderTest(BaseTest):
 
         self._check_node_chain(mod.nodes[0], expect_parent)
 
-    # @unittest.skip("skip")
     def test_skinned_mesh_split_nodepart(self):
         """
         Outliner:
@@ -266,7 +256,6 @@ class G3dBuilderTest(BaseTest):
         self._check_blendweight(mod.meshes[0].vertices, 3 + 5, 1, 1)
         self._check_blendweight(mod.meshes[0].vertices, 3 + 10, 2, 1)
 
-    # @unittest.skip("skip")
     def test_no_blendweights_in_skinned_mesh(self):
         """
         Outliner:
@@ -292,7 +281,6 @@ class G3dBuilderTest(BaseTest):
         nodepart = NodePartBuilder(None, None)
         self.assertRaises(G3dError, builder.build, info, data, nodepart)
 
-    # @unittest.skip("skip")
     def test_linear_animation(self):
         """
         Outliner:
@@ -332,7 +320,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(mod.animations[0].bones[0].keyframes[0].keytime, 0.0)
         self.assertAlmostEqual(mod.animations[0].bones[0].keyframes[1].keytime, 1000, 3)
 
-    # @unittest.skip("skip")
     def test_nonlinear_animation(self):
         """
         Outliner:
@@ -364,7 +351,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(mod.animations[0].bones[0].keyframes[0].keytime, 0)
         self.assertAlmostEqual(mod.animations[0].bones[0].keyframes[-1].keytime, 1000, 3)
 
-    # @unittest.skip("skip")
     def test_shapekeys(self):
         """
         Outliner:
@@ -414,7 +400,6 @@ class G3dBuilderTest(BaseTest):
 
 class MeshNodeDataBuilderTest(BaseTest):
 
-    # @unittest.skip("skip")
     def test_analyze_attributes(self):
         obj = add_triangle("test_analyze_attributes")
 
@@ -450,7 +435,6 @@ class BlendweightAttributeBuilderTest(BaseTest):
         self.obj1.vertex_groups.new(name="not a bone")
         self.obj1.vertex_groups['not a bone'].add([0, 1, 2], 1, 'REPLACE')
 
-    # @unittest.skip("skip")
     def test_optimal_length(self):
         slots = self.obj1.vertex_groups
         bones = self.obj_arm.data.bones
@@ -467,7 +451,6 @@ class BlendweightAttributeBuilderTest(BaseTest):
         builder.set_optimal_length(self.obj1.data, 4)
         self.assertEqual(builder.length, 2)
 
-    # @unittest.skip("skip")
     def test_setup_vertex(self):
         opt = ModelOptions()
         slots = self.obj1.vertex_groups
@@ -490,7 +473,6 @@ class BlendweightAttributeBuilderTest(BaseTest):
         self.assertIn('Bone', builder._bones)
         self.assertIn('Bone.001', builder._bones)
 
-    # @unittest.skip("skip")
     def test_build(self):
         opt = ModelOptions()
 
@@ -516,7 +498,6 @@ class BlendweightAttributeBuilderTest(BaseTest):
         self.assertEqual(len(nodepart.bones), 1)
         self.assertIn('Bone', nodepart.bones)
 
-    # @unittest.skip("skip")
     def test_filter_nodepart(self):
         opt = ModelOptions()
         opt.max_bones_per_nodepart = 2

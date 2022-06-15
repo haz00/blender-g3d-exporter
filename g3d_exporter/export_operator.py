@@ -104,12 +104,6 @@ class BaseG3dExportOperator(ExportHelper):
         default=12,
     )
 
-    max_vertices_per_mesh: IntProperty(
-        name="Mesh vertices",
-        description="Max vertices/indices per mesh.\nThe recommended value is 32767 (short type)",
-        default=32767,
-    )
-
     add_bone_tip: BoolProperty(
         name="Bone tip",
         description="Add extra bone with name '_end' to the last bone",
@@ -195,7 +189,6 @@ class BaseG3dExportOperator(ExportHelper):
 
         box.row().prop(operator, "use_shapekeys")
         box.row().prop(operator, "primitive_type")
-        box.row().prop(operator, "max_vertices_per_mesh")
 
         # material
         box = layout.box()
@@ -274,7 +267,6 @@ class BaseG3dExportOperator(ExportHelper):
         opt.use_armature = self.use_armature
         opt.max_bones_per_vertex = self.max_bones_per_vertex
         opt.max_bones_per_nodepart = self.max_bones_per_nodepart
-        opt.max_vertices_per_mesh = self.max_vertices_per_mesh
         opt.use_shapekeys = self.use_shapekeys
         opt.use_actions = self.use_actions
         opt.add_bone_tip = self.add_bone_tip
