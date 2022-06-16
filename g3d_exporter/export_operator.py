@@ -12,7 +12,7 @@ import shutil
 
 from g3d_exporter import builder
 from g3d_exporter.builder import ModelOptions
-from g3d_exporter.model import G3dModel, GShape, GModelShape
+from g3d_exporter.model import G3dModel
 from g3d_exporter.common import *
 from g3d_exporter import encoder
 
@@ -82,7 +82,7 @@ class BaseG3dExportOperator(ExportHelper):
 
     use_shapekeys: BoolProperty(
         name="Shapekeys",
-        description="Export shapekeys to separate .shapes file",
+        description="Export shapekeys",
         default=False,
     )
 
@@ -187,7 +187,8 @@ class BaseG3dExportOperator(ExportHelper):
         sub.enabled = self.use_uv
         sub.prop(operator, "flip_uv", text="", icon='MOD_MIRROR')
 
-        box.row().prop(operator, "use_shapekeys")
+        # will be replaced with alternative implementation
+        # box.row().prop(operator, "use_shapekeys")
         box.row().prop(operator, "primitive_type")
 
         # material
@@ -240,9 +241,6 @@ class BaseG3dExportOperator(ExportHelper):
 
             writepath = self.export_g3d(out, model)
 
-            if self.use_shapekeys:
-                self.export_shapekeys(out, model.shapes)
-
             duration = time.process_time() - start
             self.report({'INFO'}, "Export {:s} ({:.2f} sec)".format(str(writepath), duration))
 
@@ -276,9 +274,6 @@ class BaseG3dExportOperator(ExportHelper):
         return opt
 
     def export_g3d(self, out: Path, model: G3dModel) -> Path:
-        raise ValueError("not implemented")
-
-    def export_shapekeys(self, out: Path, shapes: List[GShape]) -> Path:
         raise ValueError("not implemented")
 
     def _copy_textures(self, source_dir: Path, model: G3dModel):
@@ -317,11 +312,6 @@ class G3djExportOperator(Operator, BaseG3dExportOperator):
         data = encoder.encode_json(model)
         return write(data, filepath.with_suffix('.g3dj'), 'w')
 
-    def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
-        mod = GModelShape(filepath.name, shapes)
-        data = encoder.encode_json(mod)
-        return write(data, filepath.with_suffix(".shapes"), 'w')
-
 
 class G3dbExportOperator(Operator, BaseG3dExportOperator):
     bl_idname = "export_scene.g3db"
@@ -332,12 +322,6 @@ class G3dbExportOperator(Operator, BaseG3dExportOperator):
     def export_g3d(self, filepath: Path, model: G3dModel) -> Path:
         data = encoder.encode_binary(model)
         return write(data, filepath.with_suffix('.g3db'), 'wb')
-
-    def export_shapekeys(self, filepath: Path, shapes: List[GShape]) -> Path:
-        # TODO binary too
-        mod = GModelShape(filepath.name, shapes)
-        data = encoder.encode_json(mod)
-        return write(data, filepath.with_suffix(".shapes"), 'w')
 
 
 def menu_func_export(self, context):

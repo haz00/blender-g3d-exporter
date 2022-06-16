@@ -5,7 +5,7 @@ import bpy
 
 from g3d_exporter import encoder
 from g3d_exporter.common import write
-from g3d_exporter.model import G3dModel, GModelShape
+from g3d_exporter.model import G3dModel
 
 log = logging.getLogger(__name__)
 
@@ -21,10 +21,6 @@ def dump_model(name: str, model: G3dModel):
     formatted = encoder.encode_json(model)
 
     out_file = out_dir / f"{name}.g3dj"
-    write(formatted, out_file)
-
-    formatted = encoder.encode_json(GModelShape(name, model.shapes))
-    out_file = out_dir / f"{name}.shape"
     write(formatted, out_file)
 
 

@@ -6,24 +6,17 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.AnimationController;
-import com.badlogic.gdx.utils.JsonReader;
-import com.haz00.g3dmodelshape.ModelShape;
-import com.haz00.g3dmodelshape.MeshShape;
-import com.haz00.g3dmodelshape.ModelShapeLoader;
 
 public class DemoImpl extends BaseDemo {
 
     private ModelInstance inst;
     private AnimationController animCtl;
     private Node armatureNode;
-    private MeshShape headShape, bodyShape;
 
     @Override
     public void create() {
         super.create();
 
-        assets.setLoader(ModelShape.class, ".shapes", new ModelShapeLoader(assets.getFileHandleResolver(), new JsonReader()));
-        assets.load("demo.shapes", ModelShape.class);
         assets.load("demo.g3db", Model.class);
         assets.finishLoading();
 
@@ -34,24 +27,10 @@ public class DemoImpl extends BaseDemo {
         animCtl = new AnimationController(inst);
         animCtl.setAnimation("SuzanneArmature|SuzanneAction", -1);
         armatureNode = inst.getNode("SuzanneArmature");
-
-        ModelShape modelShape = assets.get("demo.shapes", ModelShape.class);
-
-        headShape = modelShape.getShape("head mesh");
-        headShape.setMesh(inst.getNode("head"));
-
-        bodyShape = modelShape.getShape("body mesh");
-        bodyShape.setMesh(inst.getNode("body"));
     }
 
     @Override
     public void renderDemo() {
-        headShape.setKey("Key 1", sin01());
-        headShape.calculate();
-
-        bodyShape.setKey("Key 1", sin01());
-        bodyShape.calculate();
-
         animCtl.update(Gdx.graphics.getDeltaTime());
 
         modelBatch.begin(cam);

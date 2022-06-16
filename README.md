@@ -9,7 +9,6 @@ The demo folder contains LibGDX project with examples.
 - Bake bone animations
 - Vertex attributes customization
 - Binary encoding
-- Export shapekeys as separate file (see [shapekeys loader](https://github.com/haz00/g3d-model-shape))
 
 # Installation
 1. [Download](https://github.com/haz00/blender-g3d-exporter/releases/latest)

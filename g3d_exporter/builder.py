@@ -37,7 +37,7 @@ class ModelOptions(object):
         self.max_bones_per_nodepart = 12
         self.max_vertices_per_mesh = 32767
         self.max_indices_per_meshpart = 32767
-        self.use_shapekeys = True
+        self.use_shapekeys = False
         self.use_actions = True
         self.add_bone_tip = True
         self.apply_modifiers = True
@@ -51,16 +51,15 @@ def build(opt: ModelOptions) -> model.G3dModel:
 
 
 class G3MeshData(object):
-    def __init__(self, index: int, attributes: Tuple[model.VertexFlag], shape: model.GShape) -> None:
+    def __init__(self, index: int, attributes: Tuple[model.VertexFlag]) -> None:
         self.index = index
         self.attributes = attributes
         self.vertices: List[Vertex] = list()
         self.vertex_index: Dict[int, int] = dict()
         self.parts: Dict[str, MeshpartData] = dict()
-        self.shape = shape
 
     def __str__(self):
-        return f"{self.index}; {', '.join([str(a) for a in self.attributes])}; shape {self.shape is not None}"
+        return f"{self.index}; {', '.join([str(a) for a in self.attributes])}"
 
 
 class MeshpartData(object):
@@ -206,7 +205,6 @@ class MeshMetaInfo(object):
         self.obj = obj
         self.mesh = mesh
         self.armature = armature
-        self.shape: model.GShape = None
         self.attributes: List[AttributeBuilder] = list()
         self._flags_cached: Tuple[model.VertexFlag] = None
 
@@ -579,22 +577,7 @@ class MeshNodeDataBuilder(object):
             g3mesh.vertex_index[vhash] = vert_idx
             g3mesh.vertices.append(vert)
 
-            if g3mesh.shape is not None:
-                self._add_shapekeys(vert.original, g3mesh)
-
         meshpart.indices.append(vert_idx)
-
-    @profile
-    def _add_shapekeys(self, vert: bpy.types.MeshVertex, g3mesh: G3MeshData):
-        for key in g3mesh.shape.keys:
-            pos = key.block.data[vert.index].co
-
-            part = key.parts.get(g3mesh.index, None)
-            if not part:
-                part = model.GShapeKeyPart(g3mesh.index)
-                key.parts[g3mesh.index] = part
-
-            part.positions.extend(pos)
 
     @profile
     def _analyze_mesh(self, obj: bpy.types.Object,
@@ -606,8 +589,8 @@ class MeshNodeDataBuilder(object):
         meta.attributes.append(PositionAttributeBuilder())
 
         if self.opt.use_shapekeys and mesh.shape_keys:
-            # FIXME unique node name
-            meta.shape = model.GShape(obj.name, mesh.shape_keys)
+            # reserved feature
+            pass
 
         if self.opt.use_normal:
             meta.attributes.append(NormalAttributeBuilder())
@@ -664,12 +647,12 @@ class MeshNodeDataBuilder(object):
 
         # cache other if not
         for g3mesh in self.g3data.meshes:
-            if self._validate_g3mesh(g3mesh, face) and meta.shape == g3mesh.shape and meta.flags() == g3mesh.attributes:
+            if self._validate_g3mesh(g3mesh, face) and meta.flags() == g3mesh.attributes:
                 self._g3mesh = g3mesh
                 return self._g3mesh
 
         # create new if not found
-        self._g3mesh = G3MeshData(len(self.g3data.meshes), meta.flags(), meta.shape)
+        self._g3mesh = G3MeshData(len(self.g3data.meshes), meta.flags())
         self.g3data.meshes.append(self._g3mesh)
         log.debug("add g3mesh: %s", self._g3mesh)
         return self._g3mesh
@@ -1012,7 +995,6 @@ class G3Builder(object):
         self._make_materials(mod)
         self._make_nodes(mod)
         self._make_animations(mod)
-        self._make_shapekeys(mod)
 
         return mod
 
@@ -1048,13 +1030,6 @@ class G3Builder(object):
     @profile
     def _make_animations(self, mod: model.G3dModel):
         mod.animations = list(self.data.animations.values())
-
-    def _make_shapekeys(self, mod: model.G3dModel):
-        shapes = set()
-        for mesh in self.data.meshes:
-            if mesh.shape and mesh.shape not in shapes:
-                shapes.add(mesh.shape)
-                mod.shapes.append(mesh.shape)
 
 
 class BoneAction(object):

@@ -19,7 +19,7 @@ options = {
     'use_normal': True,
     'use_actions': True,
     'use_color': True,
-    'use_shapekeys': True,
+    'use_shapekeys': False,
     'fps': 60,
 }
 

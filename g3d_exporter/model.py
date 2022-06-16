@@ -1,5 +1,4 @@
 # <pep8 compliant>
-import collections
 
 import bpy
 
@@ -7,63 +6,6 @@ from typing import Dict, Tuple
 
 from g3d_exporter.common import *
 from g3d_exporter.profiler import profile
-
-
-class GShape(object):
-    """represents blender 'Shape Keys' panel"""
-    def __init__(self, node_id: str, shape_key: bpy.types.Key):
-        self.node_id: str = node_id
-        self.keys: List[GShapeKey] = []
-        self.shape_key: bpy.types.Key = shape_key
-
-        # initialize shape key slots
-        for block in shape_key.key_blocks:
-            self.keys.append(GShapeKey(block.name, block))
-
-    def to_dict(self) -> Dict[str, Any]:
-        root = dict()
-        root['id'] = self.node_id
-        root['keys'] = self.keys
-        return root
-
-
-class GModelShape(object):
-    def __init__(self, id: str, shapes: List[GShape]):
-        self.id = id
-        self.shapes = shapes
-
-    def to_dict(self) -> Dict[str, Any]:
-        root = dict()
-        root['id'] = self.id
-        root['shapes'] = self.shapes
-        return root
-
-
-class GShapeKeyPart(object):
-    """represents one slot in 'Shape Keys' panel"""
-    def __init__(self, mesh_index: int):
-        self.mesh_index = mesh_index
-        self.positions: List[float] = list()
-
-    def to_dict(self) -> Dict[str, Any]:
-        root = dict()
-        root['mesh'] = self.mesh_index
-        root['positions'] = self.positions
-        return root
-
-
-class GShapeKey(object):
-    """represents one slot in 'Shape Keys' panel"""
-    def __init__(self, name: str, block: bpy.types.ShapeKey):
-        self.name = name
-        self.block = block
-        self.parts: collections.OrderedDict[int, GShapeKeyPart] = collections.OrderedDict()
-
-    def to_dict(self) -> Dict[str, Any]:
-        root = dict()
-        root['name'] = self.name
-        root['parts'] = list(self.parts.values())
-        return root
 
 
 class GMeshPart(object):
@@ -99,7 +41,7 @@ class VertexFlag(object):
 
 class GMesh(object):
     """
-    mesh is unique for attributes flags and for meshes with shapekeys,
+    mesh is unique for attributes flags,
     all other blender meshes will be merged into single mesh
     """
     def __init__(self, attributes: Tuple[VertexFlag]):
@@ -259,10 +201,8 @@ class G3dModel(object):
         self.materials: List[GMaterial] = list()
         self.nodes: List[GNode] = list()
         self.animations: List[GAnimation] = list()
-        self.shapes: List[GShape] = list()
 
     def to_dict(self) -> Dict[str, Any]:
-        # note that shapekeys are not part of specification, so they encode separately
         root = dict()
         root['version'] = self.version
         root['id'] = self.id

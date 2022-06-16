@@ -71,8 +71,6 @@ class G3DJsonEncoder(json.JSONEncoder):
                     series_break = obj.vertex_size()
                 elif isinstance(obj, GMeshPart) and key == 'indices':
                     series_break = 12
-                elif isinstance(obj, GShapeKeyPart) and key == 'positions':
-                    series_break = 3
 
                 for chunk in self._interencode_list(value, content_lvl, series_break):
                     yield chunk

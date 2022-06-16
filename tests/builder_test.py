@@ -362,41 +362,30 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(mod.animations[0].bones[0].keyframes[0].keytime, 0)
         self.assertAlmostEqual(mod.animations[0].bones[0].keyframes[-1].keytime, 1000, 3)
 
-    def test_shapekeys(self):
-        """
-        Outliner:
-        obj1
-        obj2
-        """
-
-        obj1 = add_triangle("obj1", count=2)
-        k = obj1.shape_key_add(name="Basis")
-        k = obj1.shape_key_add(name="Key 1")
-        for i in range(len(obj1.data.vertices)):
-            k.data[i].co.x = 20
-            k.data[i].co.y = 10
-            k.data[i].co.z = -10
-
-        obj2 = add_triangle("obj2")
-        k = obj2.shape_key_add(name="Basis")
-
-        opt = ModelOptions()
-        opt.selected_only = True
-        opt.max_vertices_per_mesh = 3
-
-        mod = builder.build(opt)
-        dump_model(self.test_shapekeys.__name__, mod)
-
-        self.assertEqual(len(mod.meshes), 3)
-        self.assertEqual(len(mod.shapes[0].keys), 2)
-        self.assertEqual(len(mod.shapes[1].keys), 1)
-
-        self.assertEqual(mod.shapes[0].keys[1].name, "Key 1")
-        self.assertEqual(len(mod.shapes[0].keys[1].parts), 2)
-        self.assertEqual(len(mod.shapes[0].keys[1].parts[0].positions), 3 * 3)
-        self.assertAlmostEqual(mod.shapes[0].keys[1].parts[0].positions[0], 20.000, 3)
-        self.assertAlmostEqual(mod.shapes[0].keys[1].parts[0].positions[1], 10.000, 3)
-        self.assertAlmostEqual(mod.shapes[0].keys[1].parts[0].positions[2], -10.000, 3)
+    # def test_shapekeys(self):
+    #     """
+    #     Outliner:
+    #     obj1
+    #     obj2
+    #     """
+    #
+    #     obj1 = add_triangle("obj1", count=2)
+    #     k = obj1.shape_key_add(name="Basis")
+    #     k = obj1.shape_key_add(name="Key 1")
+    #     for i in range(len(obj1.data.vertices)):
+    #         k.data[i].co.x = 20
+    #         k.data[i].co.y = 10
+    #         k.data[i].co.z = -10
+    #
+    #     obj2 = add_triangle("obj2")
+    #     k = obj2.shape_key_add(name="Basis")
+    #
+    #     opt = ModelOptions()
+    #     opt.selected_only = True
+    #     opt.max_vertices_per_mesh = 3
+    #
+    #     mod = builder.build(opt)
+    #     dump_model(self.test_shapekeys.__name__, mod)
 
     def _check_node_chain(self, test: GNode, expect: GNode):
         self.assertEqual(test.id, expect.id)
