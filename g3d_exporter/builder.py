@@ -48,11 +48,6 @@ class ModelOptions(object):
         self.apply_modifiers = True
         self.fps = bpy.context.scene.render.fps
         self.primitive_type = 'AUTO'
-        self.report = None # log messages into status bar
-
-    def status(self, type, msg):
-        if self.report:
-            self.report(type, msg)
 
 
 @profile
@@ -543,12 +538,12 @@ class MeshNodeDataBuilder(object):
 
         if not len(obj.material_slots):
             log.warning('%Object has no any materials: %s', obj.name)
-            self.opt.status({'WARNING'}, "Object has no materials: " + obj.name)
+            status({'WARNING'}, "Object has no materials: " + obj.name)
             return None
 
         if not len(mesh.polygons):
             log.warning("object has empty mesh: %s", obj.name)
-            self.opt.status({'WARNING'}, "Object has empty mesh: " + obj.name)
+            status({'WARNING'}, "Object has empty mesh: " + obj.name)
             return None
 
         meta = self._analyze_mesh(obj, mesh, armature)
@@ -1121,7 +1116,7 @@ def triangulate(mesh: bpy.types.Mesh):
 @profile
 def evaluate(obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Object, bpy.types.Mesh]:
     """Returns final triangulated mesh with applied object modifiers if it has no any shape keys"""
-    
+
     if apply_modifiers and len(obj.modifiers) and obj.data.shape_keys is not None:
         log.warning("trying to apply modifiers on object with shapekeys: %s", obj.name)
         status({'WARNING'}, "Trying to apply modifiers on object with shapekeys: " + obj.name)
