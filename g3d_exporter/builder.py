@@ -785,14 +785,10 @@ class ArmatureNodeBuilder(NodeBuilder):
         # data.bones are flattened from the roots
         for b_bone in self.obj.data.bones:
             if b_bone.parent is None:
-                child = self._create_armature_bones_recursively(b_bone)
-                if child:
+                for child in self._create_armature_bones_recursively(b_bone):
                     node.children.append(child)
 
-    def _create_armature_bones_recursively(self, bone: bpy.types.Bone) -> Union[model.GNode, None]:
-        if self.opt.deform_bones_only and not bone.use_deform:
-            return None
-
+    def _create_armature_bones_recursively(self, bone: bpy.types.Bone) -> typing.Generator[model.GNode, None, None]:
         node = model.GNode(bone.name)
         rest: Matrix = bone.matrix_local
 
@@ -803,16 +799,24 @@ class ArmatureNodeBuilder(NodeBuilder):
         (node.translation, node.rotation, node.scale) = rest.decompose()
 
         for child in bone.children:
-            node.children.append(self._create_armature_bones_recursively(child))
+            for node_child in self._create_armature_bones_recursively(child):
+                if self._can_adopt(bone):
+                    node.children.append(node_child)
+                else:
+                    yield node_child
 
-        if self.opt.add_bone_tip and len(bone.children) == 0:
-            tip = model.GNode(bone.name + '_end')
-            tip.translation = Vector([0.0, bone.length, 0.0])
-            tip.scale = Vector([1.0, 1.0, 1.0])
-            tip.rotation = Quaternion([1.0, 0.0, 0.0, 0.0])
-            node.children.append(tip)
+        if self._can_adopt(bone):
+            if self.opt.add_bone_tip and len(bone.children) == 0:
+                tip = model.GNode(bone.name + '_end')
+                tip.translation = Vector([0.0, bone.length, 0.0])
+                tip.scale = Vector([1.0, 1.0, 1.0])
+                tip.rotation = Quaternion([1.0, 0.0, 0.0, 0.0])
+                node.children.append(tip)
 
-        return node
+            yield node
+
+    def _can_adopt(self, bone: bpy.types.Bone):
+        return self.opt.deform_bones_only and bone.use_deform
 
     def _create_armature_animations(self, armature: model.GNode):
         for action in bpy.data.actions:
