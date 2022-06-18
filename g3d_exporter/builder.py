@@ -19,6 +19,10 @@ from g3d_exporter.profiler import profile
 
 log = logging.getLogger(__name__)
 
+# log messages into blender status bar
+# assigned by Operator
+b_log = None
+
 
 class ModelOptions(object):
     def __init__(self) -> None:
@@ -44,6 +48,11 @@ class ModelOptions(object):
         self.apply_modifiers = True
         self.fps = bpy.context.scene.render.fps
         self.primitive_type = 'AUTO'
+        self.report = None # log messages into status bar
+
+    def status(self, type, msg):
+        if self.report:
+            self.report(type, msg)
 
 
 @profile
@@ -106,6 +115,7 @@ class MaterialBuilder(object):
                 self._setup_principled(gmat, bsdf)
             else:
                 log.warning("material has no nodes: %s", material.name)
+                status({'WARNING'}, "Material has no nodes: " + material.name)
 
         return gmat
 
@@ -479,7 +489,8 @@ class BlendweightAttributeBuilder(AttributeBuilder, FaceListener, NodePartFilter
 
         if not has_blendweights:
             raise G3dError(f"Vertex {info.vert.co} has no any weights in mesh: {info.mesh.name}. "
-                           f"Try to 'Clean Vertex Group Weights' or increase 'Bones per vertex' option")
+                           f"Try to 'Clean Vertex Group Weights' or increase 'Bones per vertex' option. "
+                           f"The problem also can exists if you use shapekeys with modifiers")
 
         if len(nodepart.bones) > self.max_bones_per_nodepart:
             # in some cases when option was configured incorrectly
@@ -531,11 +542,13 @@ class MeshNodeDataBuilder(object):
         log.debug('setup object %s, mesh %s', obj.name, obj.data.name)
 
         if not len(obj.material_slots):
-            log.warning('%s has no materials', obj.name)
+            log.warning('%Object has no any materials: %s', obj.name)
+            self.opt.status({'WARNING'}, "Object has no materials: " + obj.name)
             return None
 
         if not len(mesh.polygons):
-            log.warning("mesh is empty %s", mesh.name)
+            log.warning("object has empty mesh: %s", obj.name)
+            self.opt.status({'WARNING'}, "Object has empty mesh: " + obj.name)
             return None
 
         meta = self._analyze_mesh(obj, mesh, armature)
@@ -1120,3 +1133,8 @@ def evaluate(obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Ob
     mesh = obj.to_mesh()
     triangulate(mesh)
     return obj, mesh
+
+
+def status(type, msg):
+    if b_log:
+       b_log(type, msg)

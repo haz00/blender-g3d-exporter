@@ -242,6 +242,8 @@ class BaseG3dExportOperator(ExportHelper):
         start = time.process_time()
         try:
             opt = self._build_options()
+
+            builder.b_log = self.report
             model = builder.build(opt)
 
             out = Path(self.filepath)
