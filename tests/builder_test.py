@@ -50,13 +50,18 @@ class G3dBuilderTest(BaseTest):
     def test_parent(self):
         """
         Outliner:
-        obj1
-            obj2
+        obj1            : [ ] select
+            obj2        : [x] select
+                obj3    : [x] select
         """
 
-        obj1 = add_triangle("obj1")
+        obj1 = add_triangle("obj1", select=False)
+
         obj2 = add_triangle("obj2", mat=obj1.data.materials[0])
         obj2.parent = obj1
+
+        obj3 = add_triangle("obj3", mat=obj1.data.materials[0])
+        obj3.parent = obj2
 
         opt = ModelOptions()
         opt.selected_only = True
@@ -69,7 +74,10 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(len(mod.meshes[0].parts), 2)
 
         self.assertEqual(len(mod.nodes), 1)
+        self.assertEqual(mod.nodes[0].id, "obj2")
+
         self.assertEqual(len(mod.nodes[0].children), 1)
+        self.assertEqual(mod.nodes[0].children[0].id, "obj3")
 
     def test_linked(self):
         """

@@ -925,6 +925,7 @@ class G3Builder(object):
         log.debug('processing collection %s for %d objects...', collection.name, len(collection.objects))
 
         for obj in collection.objects:
+            #  process only root collection objects from this
             if not obj.parent or collection not in obj.parent.users_collection:
                 for node in self._process_object(obj, selected_only, id_prefix):
                     yield node
@@ -938,55 +939,68 @@ class G3Builder(object):
                         selected_only: bool,
                         id_prefix: str) -> typing.Generator[model.GNode, None, None]:
 
-        if obj.hide_viewport:
-            log.debug("skip hidden object: %s", obj.name)
-            return
-
-        if selected_only and not obj.select_get():
-            log.debug("skip not selected object: %s", obj.name)
-            return
-
-        log.debug("process object %s/%d", obj.name, hash(obj))
+        log.debug("process object %s#%d", obj.name, hash(obj))
 
         if obj.type == 'MESH':
 
-            (eval_obj, eval_mesh) = evaluate(obj, self.opt.apply_modifiers)
+            node: model.GNode = None
 
-            meshdata_key = hash(eval_mesh)
-            meshdata = self.data.mesh_node_data.get(meshdata_key, None)
+            if self._can_adopt(obj, selected_only):
+                (eval_obj, eval_mesh) = evaluate(obj, self.opt.apply_modifiers)
 
-            if meshdata is None:
-                armature = self._get_attached_armature(obj, selected_only)
-                meshdata = MeshNodeDataBuilder(self.data, self.opt).build(eval_obj, eval_mesh, armature)
-                self.data.mesh_node_data[meshdata_key] = meshdata
+                meshdata_key = hash(eval_mesh)
+                meshdata = self.data.mesh_node_data.get(meshdata_key, None)
 
-            node = MeshNodeBuilder(obj, meshdata).build(id_prefix)
-            log.debug("new node %s", node.id)
+                if meshdata is None:
+                    armature = self._get_attached_armature(obj, selected_only)
+                    meshdata = MeshNodeDataBuilder(self.data, self.opt).build(eval_obj, eval_mesh, armature)
+                    self.data.mesh_node_data[meshdata_key] = meshdata
+
+                node = MeshNodeBuilder(obj, meshdata).build(id_prefix)
+                log.debug("new node %s", node.id)
+            else:
+                log.debug("%s cannot adopt", obj.name)
 
             for child_obj in obj.children:
                 for child_node in self._process_object(child_obj, selected_only, id_prefix):
-                    node.children.append(child_node)
-                    log.debug("add child node to %s: %s", node.id, child_node.id)
+                    if node:
+                        node.children.append(child_node)
+                        log.debug("add child node to %s: %s", node.id, child_node.id)
+                    else:
+                        yield child_node
 
-            yield node
+            if node:
+                yield node
 
         elif obj.type == 'ARMATURE':
-            node = ArmatureNodeBuilder(obj, self.data, self.opt).build(id_prefix)
-            log.debug("new node %s", node.id)
+
+            node: model.GNode = None
+
+            if self._can_adopt(obj, selected_only):
+                node = ArmatureNodeBuilder(obj, self.data, self.opt).build(id_prefix)
+                log.debug("new node %s", node.id)
+            else:
+                log.debug("%s cannot adopt", obj.name)
 
             for child_obj in obj.children:
                 for child_node in self._process_object(child_obj, selected_only, id_prefix):
-                    log.debug("handle armature child %s: %s", node.id, child_node.id)
+                    log.debug("handle armature child %s: %s", obj.name, child_obj.name)
                     # armature child should stay at the same level as armature
                     yield child_node
 
-            yield node
+            if node:
+                yield node
 
         elif obj.type == 'EMPTY':
-            node = NodeBuilder(obj).build(id_prefix)
-            log.debug("new node %s", node.id)
+            node: model.GNode = None
 
-            if obj.instance_collection is not None:
+            if self._can_adopt(obj, selected_only):
+                node = NodeBuilder(obj).build(id_prefix)
+                log.debug("new node %s", node.id)
+            else:
+                log.debug("%s cannot adopt", obj.name)
+
+            if node and obj.instance_collection is not None:
                 next_prefix = node.id + "|"
                 for child_node in self._process_collection(obj.instance_collection, True, False, next_prefix):
                     node.children.append(child_node)
@@ -994,11 +1008,20 @@ class G3Builder(object):
             else:
                 for child_obj in obj.children:
                     for child_node in self._process_object(child_obj, False, id_prefix):
-                        node.children.append(child_node)
-                        log.debug("add child node to %s: %s", node.id, child_node.id)
-            yield node
+                        if node:
+                            node.children.append(child_node)
+                            log.debug("add child node to %s: %s", node.id, child_node.id)
+                        else:
+                            yield child_node
+
+            if node:
+                yield node
         else:
             log.debug("skip export for %s due type: %s", obj.name, obj.type)
+
+    @profile
+    def _can_adopt(self, obj: bpy.types.Object, selected_only: bool) -> bool:
+        return not obj.hide_viewport and (obj.select_get() if selected_only else True)
 
     @profile
     def _get_attached_armature(self, obj: bpy.types.Object, selected_only: bool) -> bpy.types.Object:
@@ -1008,7 +1031,7 @@ class G3Builder(object):
         """
         if self.opt.use_armature:
             exist = obj.find_armature()
-            if exist and not exist.hide_viewport and (not selected_only or obj.select_get()):
+            if exist and self._can_adopt(exist, selected_only):
                 return exist
         return None
 
