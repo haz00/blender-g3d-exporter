@@ -1121,7 +1121,11 @@ def triangulate(mesh: bpy.types.Mesh):
 @profile
 def evaluate(obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Object, bpy.types.Mesh]:
     """Returns final triangulated mesh with applied object modifiers if it has no any shape keys"""
-    apply_modifiers = apply_modifiers and obj.data.shape_keys is None
+    
+    if apply_modifiers and len(obj.modifiers) and obj.data.shape_keys is not None:
+        log.warning("trying to apply modifiers on object with shapekeys: %s", obj.name)
+        status({'WARNING'}, "Trying to apply modifiers on object with shapekeys: " + obj.name)
+
     log.debug("evaluate %s, apply modifiers %s", obj.name, apply_modifiers)
 
     if apply_modifiers:
