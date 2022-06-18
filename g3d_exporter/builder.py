@@ -33,6 +33,7 @@ class ModelOptions(object):
         self.use_binormal = True
         self.flip_uv = True
         self.use_armature = True
+        self.deform_bones_only = True
         self.bones_per_vertex = 4
         self.max_bones_per_nodepart = 12
         self.max_vertices_per_mesh = 32767
@@ -769,9 +770,13 @@ class ArmatureNodeBuilder(NodeBuilder):
         for b_bone in self.obj.data.bones:
             if b_bone.parent is None:
                 child = self._create_armature_bones_recursively(b_bone)
-                node.children.append(child)
+                if child:
+                    node.children.append(child)
 
-    def _create_armature_bones_recursively(self, bone: bpy.types.Bone) -> model.GNode:
+    def _create_armature_bones_recursively(self, bone: bpy.types.Bone) -> Union[model.GNode, None]:
+        if self.opt.deform_bones_only and not bone.use_deform:
+            return None
+
         node = model.GNode(bone.name)
         rest: Matrix = bone.matrix_local
 

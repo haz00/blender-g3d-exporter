@@ -186,8 +186,9 @@ class G3dBuilderTest(BaseTest):
         """
         Outliner:
         armature
-            Bone
-                Bone.001
+            Bone            : [x] deform
+                Bone.001    : [x] deform
+            Bone.002        : [ ] deform
 
         Nodes:
         armature
@@ -199,7 +200,45 @@ class G3dBuilderTest(BaseTest):
         obj1 = add_armature("armature")
 
         opt = ModelOptions()
-        opt.selected_only = True
+
+        mod = builder.build(opt)
+        dump_model(self.test_armature_node.__name__, mod)
+
+        self.assertEqual(len(mod.meshes), 0)
+        self.assertEqual(len(mod.nodes), 1)
+
+        expect_child = GNode("Bone.001_end")
+        expect_parent = GNode("Bone.001")
+        expect_parent.children.append(expect_child)
+
+        expect_child = expect_parent
+        expect_parent = GNode("Bone")
+        expect_parent.children.append(expect_child)
+
+        expect_child = expect_parent
+        expect_parent = GNode(obj1.name)
+        expect_parent.children.append(expect_child)
+
+        self._check_node_chain(mod.nodes[0], expect_parent)
+
+    def test_armature_node_with_non_deforms(self):
+        """
+        Outliner:
+        armature
+            Bone            : [ ] deform
+                Bone.001    : [ ] deform
+
+        Nodes:
+        armature
+            Bone
+                Bone.001
+                    Bone.001_end
+        """
+
+        obj1 = add_armature("armature")
+
+        opt = ModelOptions()
+        opt.deform_bones_only = False
 
         mod = builder.build(opt)
         dump_model(self.test_armature_node.__name__, mod)

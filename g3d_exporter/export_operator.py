@@ -110,6 +110,12 @@ class BaseG3dExportOperator(ExportHelper):
         default=True,
     )
 
+    deform_bones_only: BoolProperty(
+        name="Deform bones only",
+        description="",
+        default=True,
+    )
+
     use_actions: BoolProperty(
         name="Actions",
         description="Export actions as animation",
@@ -209,6 +215,9 @@ class BaseG3dExportOperator(ExportHelper):
         box.row().prop(operator, "use_armature")
         row = box.row()
         row.enabled = self.use_armature
+        row.prop(operator, "deform_bones_only")
+        row = box.row()
+        row.enabled = self.use_armature
         row.prop(operator, "add_bone_tip")
         row = box.row()
         row.enabled = self.use_armature
@@ -266,6 +275,7 @@ class BaseG3dExportOperator(ExportHelper):
         opt.max_bones_per_vertex = self.max_bones_per_vertex
         opt.max_bones_per_nodepart = self.max_bones_per_nodepart
         opt.use_shapekeys = self.use_shapekeys
+        opt.deform_bones_only = self.deform_bones_only
         opt.use_actions = self.use_actions
         opt.add_bone_tip = self.add_bone_tip
         opt.apply_modifiers = self.apply_modifiers
