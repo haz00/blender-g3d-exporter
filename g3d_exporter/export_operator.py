@@ -151,13 +151,14 @@ class BaseG3dExportOperator(ExportHelper):
     primitive_type: EnumProperty(
         name="Primitive type",
         description="Used to specify the primitive type of the mesh part",
-        default='TRIANGLES',
+        default='AUTO',
         items=(
-            ('TRIANGLES', 'TRIANGLES', ''),
-            ('LINES', 'LINES', ''),
-            ('POINTS', 'POINTS', ''),
-            ('TRIANGLE_STRIP', 'TRIANGLE_STRIP', ''),
-            ('LINE_STRIP', 'LINE_STRIP', ''))
+            ('AUTO', 'Auto', 'The Wired objects will be treated as a Line strip, all the others are Triangles'),
+            ('TRIANGLES', 'Triangles', ''),
+            ('LINES', 'Lines', ''),
+            ('POINTS', 'Points', ''),
+            ( 'TRIANGLE_STRIP', 'Triangle strip', ''),
+            ( 'LINE_STRIP', 'Line strip', ''))
     )
 
     def draw(self, context):

@@ -43,7 +43,7 @@ class ModelOptions(object):
         self.add_bone_tip = True
         self.apply_modifiers = True
         self.fps = bpy.context.scene.render.fps
-        self.primitive_type = 'TRIANGLES'
+        self.primitive_type = 'AUTO'
 
 
 @profile
@@ -671,7 +671,7 @@ class MeshNodeDataBuilder(object):
         if not nodepart:
             meshpartid = f"{meta.mesh.name}_mesh{g3mesh.index}_part{len(g3mesh.parts)}"
 
-            meshpart = MeshpartData(meshpartid, self.opt.primitive_type, g3mesh)
+            meshpart = MeshpartData(meshpartid, self._get_primitive_type(meta.obj), g3mesh)
             g3mesh.parts[meshpartid] = meshpart
 
             nodepart = NodePartBuilder(face.material, meshpart)
@@ -679,6 +679,14 @@ class MeshNodeDataBuilder(object):
             log.debug("%s add nodepart: %d", meta.obj.name, len(nodeparts))
 
         return nodepart
+
+    def _get_primitive_type(self, obj: bpy.types.Object):
+        if self.opt.primitive_type == 'AUTO':
+            if obj.display_type == 'WIRE':
+                return 'LINE_STRIP'
+            else:
+                return 'TRIANGLES'
+        return self.opt.primitive_type
 
     @profile
     def _find_nodepart(self, face: FaceInfo, g3mesh: G3MeshData, parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:

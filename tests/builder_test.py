@@ -221,7 +221,7 @@ class G3dBuilderTest(BaseTest):
 
         self._check_node_chain(mod.nodes[0], expect_parent)
 
-    def test_armature_node_with_non_deforms(self):
+    def test_export_non_deforms(self):
         """
         Outliner:
         armature
@@ -241,7 +241,7 @@ class G3dBuilderTest(BaseTest):
         opt.deform_bones_only = False
 
         mod = builder.build(opt)
-        dump_model(self.test_armature_node.__name__, mod)
+        dump_model(self.test_export_non_deforms.__name__, mod)
 
         self.assertEqual(len(mod.meshes), 0)
         self.assertEqual(len(mod.nodes), 1)
@@ -497,6 +497,20 @@ class MeshNodeDataBuilderTest(BaseTest):
         self.assertEqual(mod.meshes[1].parts[0].indices[0], 0)
         self.assertEqual(mod.meshes[1].parts[0].indices[1], 1)
         self.assertEqual(mod.meshes[1].parts[0].indices[2], 2)
+
+    def test_primitive_type(self):
+        obj1 = add_triangle("obj1")
+        obj1.display_type = 'WIRE'
+
+        obj2 = add_triangle("obj2")
+        obj2.display_type = 'SOLID'
+
+        opt = ModelOptions()
+
+        mesh_builder = MeshNodeDataBuilder(G3Data(), opt)
+
+        self.assertEqual(mesh_builder._get_primitive_type(obj1), 'LINE_STRIP')
+        self.assertEqual(mesh_builder._get_primitive_type(obj2), 'TRIANGLES')
 
 
 class BlendweightAttributeBuilderTest(BaseTest):
