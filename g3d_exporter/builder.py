@@ -484,6 +484,7 @@ class BlendweightAttributeBuilder(AttributeBuilder, FaceListener, NodePartFilter
 
         if not has_blendweights:
             raise G3dError(f"Vertex {info.vert.co} has no any weights in mesh: {info.mesh.name}. "
+                           f"Make sure that the vertex has a weight."
                            f"Try to 'Clean Vertex Group Weights' or increase 'Bones per vertex' option. "
                            f"The problem also can exists if you use shapekeys with modifiers")
 
@@ -904,11 +905,10 @@ class G3Builder(object):
     def _process_layer_collection(self,
                                   layer_col: bpy.types.LayerCollection) -> typing.Generator[model.GNode, None, None]:
         if layer_col.exclude:
-            log.debug("skip hidden collection: %s", layer_col.name)
-            return
-
-        for node in self._process_collection(layer_col.collection, False, self.opt.selected_only, ""):
-            yield node
+            log.debug("collection excluded: %s", layer_col.name)
+        else:
+            for node in self._process_collection(layer_col.collection, False, self.opt.selected_only, ""):
+                yield node
 
         for lc in layer_col.children:
             for node in self._process_layer_collection(lc):
@@ -927,7 +927,7 @@ class G3Builder(object):
         for obj in collection.objects:
             #  process only root collection objects from this
             if not obj.parent or collection not in obj.parent.users_collection:
-                for node in self._process_object(obj, selected_only, id_prefix):
+                for node in self._process_object(obj, collection, selected_only, id_prefix):
                     yield node
 
         if with_children:
@@ -936,10 +936,16 @@ class G3Builder(object):
                     yield node
 
     def _process_object(self, obj: bpy.types.Object,
+                        collection: bpy.types.Collection,
                         selected_only: bool,
                         id_prefix: str) -> typing.Generator[model.GNode, None, None]:
 
         log.debug("process object %s#%d", obj.name, hash(obj))
+
+        # check case where object can be parenting but hidden in other collection
+        if obj.name not in collection.objects:
+            log.debug("skip %s: currently not in collection: %s", obj.name, collection.name)
+            return
 
         if obj.type == 'MESH':
 
@@ -962,7 +968,7 @@ class G3Builder(object):
                 log.debug("%s cannot adopt", obj.name)
 
             for child_obj in obj.children:
-                for child_node in self._process_object(child_obj, selected_only, id_prefix):
+                for child_node in self._process_object(child_obj, collection, selected_only, id_prefix):
                     if node:
                         node.children.append(child_node)
                         log.debug("add child node to %s: %s", node.id, child_node.id)
@@ -983,7 +989,7 @@ class G3Builder(object):
                 log.debug("%s cannot adopt", obj.name)
 
             for child_obj in obj.children:
-                for child_node in self._process_object(child_obj, selected_only, id_prefix):
+                for child_node in self._process_object(child_obj, collection, selected_only, id_prefix):
                     log.debug("handle armature child %s: %s", obj.name, child_obj.name)
                     # armature child should stay at the same level as armature
                     yield child_node
@@ -1007,7 +1013,7 @@ class G3Builder(object):
                     log.debug("add child node to %s: %s", node.id, child_node.id)
             else:
                 for child_obj in obj.children:
-                    for child_node in self._process_object(child_obj, False, id_prefix):
+                    for child_node in self._process_object(child_obj, collection, False, id_prefix):
                         if node:
                             node.children.append(child_node)
                             log.debug("add child node to %s: %s", node.id, child_node.id)
