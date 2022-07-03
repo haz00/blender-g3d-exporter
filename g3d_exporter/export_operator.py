@@ -244,7 +244,6 @@ class BaseG3dExportOperator(ExportHelper):
             opt = self._build_options()
 
             builder.b_log = self.report
-            bpy.ops.object.mode_set(mode='OBJECT')
             model = builder.build(opt)
 
             out = Path(self.filepath)

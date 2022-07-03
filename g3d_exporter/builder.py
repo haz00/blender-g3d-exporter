@@ -52,6 +52,9 @@ class ModelOptions(object):
 
 @profile
 def build(opt: ModelOptions) -> model.G3dModel:
+    if bpy.context.view_layer.objects.active:
+       bpy.ops.object.mode_set(mode='OBJECT')
+
     return G3Builder(opt).build()
 
 

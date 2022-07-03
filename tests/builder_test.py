@@ -406,6 +406,23 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(mod.animations[0].bones[0].keyframes[0].keytime, 0)
         self.assertAlmostEqual(mod.animations[0].bones[0].keyframes[-1].keytime, 1000, 3)
 
+    def test_export_in_editmode(self):
+        obj1 = add_triangle("obj1")
+
+        bpy.context.view_layer.objects.active = obj1
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        opt = ModelOptions()
+
+        mod = builder.build(opt)
+        dump_model(self.test_export_in_editmode.__name__, mod)
+
+        self.assertEqual(len(mod.meshes), 1)
+        self.assertEqual(mod.meshes[0].vertex_count(), 3)
+        self.assertEqual(len(mod.meshes[0].parts), 1)
+        self.assertEqual(len(mod.nodes), 1)
+
+
     # def test_shapekeys(self):
     #     """
     #     Outliner:
