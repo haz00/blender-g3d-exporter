@@ -20,7 +20,7 @@ The demo folder contains the LibGDX project with examples.
 
 <p align="center">
     <img src="./docs/screenshot.jpg"/><br>
-    <em>v0.7</em>
+    <em>v0.8</em>
 </p>
 
 # Useful links
