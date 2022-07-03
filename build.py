@@ -28,6 +28,7 @@ blender_addon_paths = [
     appdata_path / "Blender Foundation/Blender/2.93/scripts/addons",  # lts
     appdata_path / "Blender Foundation/Blender/3.0/scripts/addons",
     appdata_path / "Blender Foundation/Blender/3.1/scripts/addons",
+    appdata_path / "Blender Foundation/Blender/3.2/scripts/addons",
 ]
 
 
