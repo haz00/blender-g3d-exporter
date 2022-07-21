@@ -6,15 +6,16 @@ from typing import Dict, Callable, List
 
 class FunctionMetric(object):
     def __init__(self, name: str):
-        self.name = name
-        self.total = 0
-        self.calls = 0
+        self.name = name # function name
+        self.total = 0 # ms
+        self.calls = 0 # function calls count
 
 
 metrics: Dict[Callable, FunctionMetric] = dict()
 
 
 def profile(func):
+    """delegate - measures the duration of a function call"""
     def timed(*args, **kwargs):
         start = time.process_time()
         try:

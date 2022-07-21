@@ -1,6 +1,7 @@
 # <pep8 compliant>
 import collections
 import logging
+import math
 
 import bmesh
 import typing
@@ -19,8 +20,8 @@ from g3d_exporter.profiler import profile
 
 log = logging.getLogger(__name__)
 
-# log messages into blender status bar
-# assigned by Operator
+# logs messages to the blender status bar
+# should be assigned before any other function call
 b_log = None
 
 
@@ -52,6 +53,7 @@ class ModelOptions(object):
 
 @profile
 def build(opt: ModelOptions) -> model.G3dModel:
+    """starts generation of g3d model"""
     if bpy.context.view_layer.objects.active:
        bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -193,6 +195,7 @@ class NodePartBuilder(object):
 
     @profile
     def count_bone(self, bones: Dict[str, bpy.types.Bone]) -> int:
+        """counts bone overlaps within single nodepart to create new nodepart if this one is full"""
         if not self.bones or not bones:
             return 0
 
@@ -210,9 +213,10 @@ class NodePartBuilder(object):
 
 
 class MeshMetaInfo(object):
+    """this temporally uses while MeshNodeDataBuilder process"""
     def __init__(self, obj: bpy.types.Object, mesh: bpy.types.Mesh, armature: bpy.types.Object):
-        self.obj = obj
-        self.mesh = mesh
+        self.obj = obj # final object
+        self.mesh = mesh # final mesh (triangulated, modifiers applied..)
         self.armature = armature
         self.attributes: List[AttributeBuilder] = list()
         self._flags_cached: Tuple[model.VertexFlag] = None
@@ -467,9 +471,7 @@ class BlendweightAttributeBuilder(AttributeBuilder, FaceListener, NodePartFilter
 
         # true - if there are enough space for the rest of vertex bones,
         # false - to create a new nodepart
-        if len(part.bones) + rest_count <= self.max_bones_per_nodepart:
-            return True
-        return False
+        return len(part.bones) + rest_count <= self.max_bones_per_nodepart
 
     @profile
     def build(self, info: VertexInfo, data: List[float], nodepart: NodePartBuilder):
@@ -497,7 +499,7 @@ class BlendweightAttributeBuilder(AttributeBuilder, FaceListener, NodePartFilter
                            f"Check 'Nodepart Bones' option")
 
         # fill the gaps if there are no bones assigned
-        for i in range(len(info.bones), self.length):
+        for _ in range(len(info.bones), self.length):
             data.extend(self._empty)
 
     @profile
@@ -639,7 +641,7 @@ class MeshNodeDataBuilder(object):
 
     @profile
     def _get_material(self, mat: bpy.types.Material) -> model.GMaterial:
-        """get or create material"""
+        """get appropriate material or create new"""
         material = self.g3data.materials.get(mat.name, None)
 
         if material is None:
@@ -649,22 +651,22 @@ class MeshNodeDataBuilder(object):
 
     @profile
     def _get_g3mesh(self, meta: MeshMetaInfo, face: FaceInfo) -> G3MeshData:
-        """get or create g3mesh"""
+        """get appropriate g3mesh by face data or create new"""
 
-        # check if its still valid
+        # check cached value firsly if its still valid
         if self._g3mesh is not None:
             if self._validate_g3mesh(self._g3mesh, face):
                 return self._g3mesh
             else:
                 self._g3mesh = None
 
-        # cache other if not
+        # cache a new one if its not
         for g3mesh in self.g3data.meshes:
             if self._validate_g3mesh(g3mesh, face) and meta.flags() == g3mesh.attributes:
                 self._g3mesh = g3mesh
                 return self._g3mesh
 
-        # create new if not found
+        # create a new one if no appropriate g3dmesh was found
         self._g3mesh = G3MeshData(len(self.g3data.meshes), meta.flags())
         self.g3data.meshes.append(self._g3mesh)
         log.debug("add g3mesh: %s", self._g3mesh)
@@ -672,12 +674,13 @@ class MeshNodeDataBuilder(object):
 
     def _validate_g3mesh(self, g3mesh: G3MeshData, face: FaceInfo):
         # FIXME not critical but better to check if vertices already in mesh
+        # because "+ face.size" does not nessesarry give the real change size
         return len(g3mesh.vertices) + face.size <= self.opt.max_vertices_per_mesh
 
     @profile
     def _get_nodepart(self, meta: MeshMetaInfo, g3mesh: G3MeshData,
                       face: FaceInfo, nodeparts: List[NodePartBuilder]) -> NodePartBuilder:
-        """get or create nodepart"""
+        """get appropriate nodepart or create new"""
         nodepart = self._find_nodepart(face, g3mesh, nodeparts)
 
         if not nodepart:
@@ -704,14 +707,14 @@ class MeshNodeDataBuilder(object):
     def _find_nodepart(self, face: FaceInfo, g3mesh: G3MeshData, parts: List[NodePartBuilder]) -> Union[NodePartBuilder, None]:
         """find part by material, vacant indices and bones included to it"""
 
-        # check if still valid
+        # validate cached value firstly
         if self._nodepart:
             if self._validate_nodepart(self._nodepart, g3mesh, face):
                 return self._nodepart
             else:
                 self._nodepart = None
 
-        # cache other if not
+        # cache a new one otherwise
         for part in parts:
             if self._validate_nodepart(part, g3mesh, face):
                 self._nodepart = part
@@ -719,6 +722,7 @@ class MeshNodeDataBuilder(object):
         return None
 
     def _validate_nodepart(self, part: NodePartBuilder, g3mesh: G3MeshData, face: FaceInfo):
+        """true - if nodepart can accept the face data"""
         return part.meshpart.g3mesh == g3mesh \
                 and part.material == face.material \
                 and len(part.meshpart.indices) + len(face.vertices) <= self.opt.max_indices_per_meshpart \
@@ -726,6 +730,7 @@ class MeshNodeDataBuilder(object):
 
     @profile
     def _validate_nodepart_filters(self, part: NodePartBuilder) -> bool:
+        """additional filters that AttributeBuilders can use"""
         for filter in self._nodepart_filters:
             if not filter.filter_nodepart(part):
                 return False
@@ -786,7 +791,7 @@ class ArmatureNodeBuilder(NodeBuilder):
         """build tree from root bones"""
         log.debug("build bones tree of %s", node.id)
 
-        # data.bones are flattened from the roots
+        # data.bones are flattened from the roots(?)
         for b_bone in self.obj.data.bones:
             if b_bone.parent is None:
                 for child in self._create_armature_bones_recursively(b_bone):
@@ -809,13 +814,13 @@ class ArmatureNodeBuilder(NodeBuilder):
                 else:
                     yield node_child
 
-        if self._can_adopt(bone):
-            if self.opt.add_bone_tip and len(bone.children) == 0:
-                tip = model.GNode(bone.name + '_end')
-                tip.translation = Vector([0.0, bone.length, 0.0])
-                tip.scale = Vector([1.0, 1.0, 1.0])
-                tip.rotation = Quaternion([1.0, 0.0, 0.0, 0.0])
-                node.children.append(tip)
+        # tip after last bone
+        if self.opt.add_bone_tip and len(bone.children) == 0 and self._can_adopt(bone):
+            tip = model.GNode(bone.name + '_end')
+            tip.translation = Vector([0.0, bone.length, 0.0])
+            tip.scale = Vector([1.0, 1.0, 1.0])
+            tip.rotation = Quaternion([1.0, 0.0, 0.0, 0.0])
+            node.children.append(tip)
 
             yield node
 
@@ -849,7 +854,7 @@ class ArmatureNodeBuilder(NodeBuilder):
         The first keyframe will have 0 millis.
         Populates missing curves (location, rotation, scale) with the rest pose.
 
-        Note that keyframe time from Graph Editor will be rounded to int.
+        Note that the Keyframe time (in Graph Editor) will be rounded to int.
         """
 
         anim_bone = model.GBoneAnimation(b_bone.name)
@@ -859,6 +864,7 @@ class ArmatureNodeBuilder(NodeBuilder):
 
         bone_action = BoneAction(b_bone, action)
 
+        # if the key true - keyframe will be baked
         keyframes: Dict[int, bool] = dict()
 
         # collect the time of all keyframes and decide which should be baked
@@ -899,6 +905,8 @@ class G3Builder(object):
         log.debug('start building...')
         root = bpy.context.view_layer.layer_collection
 
+        # blender has 2 collection types: layer and data collection
+        # layer collection is primary because it has inheritence and data collection
         for node in self._process_layer_collection(root):
             self.data.nodes.append(node)
             log.debug("add root node %s", node.id)
@@ -921,6 +929,11 @@ class G3Builder(object):
                             with_children: bool,
                             selected_only: bool,
                             id_prefix: str) -> typing.Generator[model.GNode, None, None]:
+        """
+        with_children - true when collection is collection instance
+        selected_only - by settings or false when collection is collection instance
+        id_prefix - not empty when collection is collection instance
+        """
         if collection.hide_viewport:
             log.debug("skip hidden collection: %s", collection.name)
             return
@@ -1071,13 +1084,13 @@ class G3Builder(object):
             mod.meshes.append(mesh)
 
     def _make_materials(self, mod: model.G3dModel):
-        for mat in self.data.materials.values():
-            mod.materials.append(mat)
+        mod.materials = list(self.data.materials.values())
 
     @profile
     def _make_nodes(self, mod: model.G3dModel):
         if self.opt.y_up:
-            rot = Quaternion((-0.707, 0.707, 0, 0))
+             # rotate root nodes by -x
+            rot = Quaternion((1, 0, 0), math.radians(-90))
             for node in self.data.nodes:
                 node.rotation = rot @ node.rotation
                 node.translation = rot @ node.translation
@@ -1153,9 +1166,10 @@ def triangulate(mesh: bpy.types.Mesh):
 def evaluate(obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Object, bpy.types.Mesh]:
     """Returns final triangulated mesh with applied object modifiers if it has no any shape keys"""
 
-    if apply_modifiers and len(obj.modifiers) and obj.data.shape_keys is not None:
-        log.warning("trying to apply modifiers on object with shapekeys: %s", obj.name)
-        status({'WARNING'}, "Trying to apply modifiers on object with shapekeys: " + obj.name)
+    if apply_modifiers and obj.data.shape_keys is not None:
+        if not (obj.find_armature() and len(obj.modifiers) == 1):
+            log.warning("trying to apply modifiers on object with shapekeys: %s", obj.name)
+            status({'WARNING'}, "Trying to apply modifiers on object with shapekeys: " + obj.name)
 
     log.debug("evaluate %s, apply modifiers %s", obj.name, apply_modifiers)
 
@@ -1171,5 +1185,6 @@ def evaluate(obj: bpy.types.Object, apply_modifiers: bool) -> Tuple[bpy.types.Ob
 
 
 def status(type, msg):
+    """pushes message to blender status bar"""
     if b_log:
        b_log(type, msg)
