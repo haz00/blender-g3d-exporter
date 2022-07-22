@@ -27,6 +27,28 @@ def encode_json(obj):
     return json.dumps(obj, cls=G3DJsonEncoder)
 
 
+def encode_info(info: G3dModelInfo) -> str:
+    """just yaml"""
+    res = "---\n"
+    res += f"vertices: {info.vertices}\n"
+    res += f"indices: {info.indices}\n"
+
+    res += f"materials:\n"
+    for mat in info.materials:
+        res += f"\t- {mat}\n"
+
+    res += f"armatures:\n"
+    for arm in info.armatures:
+        res += f"\t- {arm}\n"
+
+    res += f"animations:\n"
+    for anim in info.animations:
+        res += f"\t- {anim}\n"
+
+    return res
+
+
+
 class G3DJsonEncoder(json.JSONEncoder):
     ln = '\n'
     spaces = ' ' * 2

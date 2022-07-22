@@ -1,4 +1,5 @@
 # <pep8 compliant>
+import typing
 
 import bpy
 
@@ -53,7 +54,8 @@ class GMesh(object):
         return sum(attr.length for attr in self.attributes)
 
     def vertex_count(self):
-        return int(len(self.vertices) / self.vertex_size())
+        d = self.vertex_size()
+        return 0 if d == 0 else int(len(self.vertices) / d)
 
     def to_dict(self) -> Dict[str, Any]:
         root = dict()
@@ -133,8 +135,9 @@ class GNodePart(object):
 
 class GNode(object):
     """represents blender scene object or armature bones tree"""
-    def __init__(self, id: str):
+    def __init__(self, id: str, original: bpy.types.Object = None):
         self.id = id
+        self.original = original
         self.parts: List[GNodePart] = []
         self.children: List[GNode] = []
         self.parent: GNode = None
@@ -211,3 +214,32 @@ class G3dModel(object):
         root['nodes'] = self.nodes
         root['animations'] = self.animations
         return root
+
+
+class G3dModelInfo(object):
+    """just human-readable model statistics"""
+    def __init__(self):
+        self.vertices = 0
+        self.indices = 0
+        self.materials: List[str] = list()
+        self.animations: List[str] = list()
+        self.armatures: List[str] = list()
+
+    def update(self, g3d: G3dModel):
+        self.vertices = sum(m.vertex_count() for m in g3d.meshes)
+        self.indices = sum(sum(len(p.indices) for p in m.parts) for m in g3d.meshes)
+        self.materials = map(lambda v: v.id, g3d.materials)
+        self.animations = map(lambda v: v.id, g3d.animations)
+
+        self.armatures = list()
+        for node in g3d.nodes:
+            for res in self._find_armatures_recursive(node):
+                self.armatures.append(res)
+
+    def _find_armatures_recursive(self, node: GNode) -> typing.Generator[str, None, None]:
+        if node.original and node.original.type == 'ARMATURE':
+            yield node.id
+
+        for child in node.children:
+            for res in self._find_armatures_recursive(child):
+                yield res

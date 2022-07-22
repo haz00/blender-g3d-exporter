@@ -5,7 +5,7 @@ import bpy
 
 from g3d_exporter import encoder
 from g3d_exporter.common import write
-from g3d_exporter.model import G3dModel
+from g3d_exporter.model import G3dModel, G3dModelInfo
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ def deselect_all():
     bpy.ops.object.select_all(action='DESELECT')
 
 
-def dump_model(name: str, model: G3dModel):
+def dump_model(name: str, model: G3dModel, with_info: bool = True):
     out_dir = Path(__file__).parent / f"build/{bpy.app.version_string}"
     out_dir.mkdir(exist_ok=True, parents=True)
 
@@ -22,6 +22,11 @@ def dump_model(name: str, model: G3dModel):
 
     out_file = out_dir / f"{name}.g3dj"
     write(formatted, out_file)
+
+    if with_info:
+        info = G3dModelInfo()
+        info.update(model)
+        write(encoder.encode_info(info), out_file.with_suffix(".yaml"))
 
 
 def add_triangle(name, mesh=None, mat=None, select=True, count=1) -> bpy.types.Object:

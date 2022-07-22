@@ -743,7 +743,7 @@ class NodeBuilder(object):
         self.obj = obj
 
     def build(self, id_prefix: str) -> model.GNode:
-        node = model.GNode(id_prefix + self.obj.name)
+        node = model.GNode(id_prefix + self.obj.name, self.obj)
 
         mx: Matrix = self.obj.matrix_world
         if self.obj.parent:
@@ -791,11 +791,13 @@ class ArmatureNodeBuilder(NodeBuilder):
         """build tree from root bones"""
         log.debug("build bones tree of %s", node.id)
 
-        # data.bones are flattened from the roots(?)
+        # data.bones are flattened
         for b_bone in self.obj.data.bones:
+            # start from roots
             if b_bone.parent is None:
                 for child in self._create_armature_bones_recursively(b_bone):
                     node.children.append(child)
+                    log.debug("add root bone: %s", child.id)
 
     def _create_armature_bones_recursively(self, bone: bpy.types.Bone) -> typing.Generator[model.GNode, None, None]:
         node = model.GNode(bone.name)
@@ -811,17 +813,19 @@ class ArmatureNodeBuilder(NodeBuilder):
             for node_child in self._create_armature_bones_recursively(child):
                 if self._can_adopt(bone):
                     node.children.append(node_child)
+                    log.debug("add bone: %s", node_child.id)
                 else:
                     yield node_child
 
-        # tip after last bone
-        if self.opt.add_bone_tip and len(bone.children) == 0 and self._can_adopt(bone):
-            tip = model.GNode(bone.name + '_end')
-            tip.translation = Vector([0.0, bone.length, 0.0])
-            tip.scale = Vector([1.0, 1.0, 1.0])
-            tip.rotation = Quaternion([1.0, 0.0, 0.0, 0.0])
-            node.children.append(tip)
-
+        if self._can_adopt(bone):
+            # tip after last bone
+            if self.opt.add_bone_tip and len(bone.children) == 0:
+                tip = model.GNode(bone.name + '_end')
+                tip.translation = Vector([0.0, bone.length, 0.0])
+                tip.scale = Vector([1.0, 1.0, 1.0])
+                tip.rotation = Quaternion([1.0, 0.0, 0.0, 0.0])
+                node.children.append(tip)
+                log.debug("add tip bone: %s", tip.id)
             yield node
 
     def _can_adopt(self, bone: bpy.types.Bone):
@@ -1089,7 +1093,7 @@ class G3Builder(object):
     @profile
     def _make_nodes(self, mod: model.G3dModel):
         if self.opt.y_up:
-             # rotate root nodes by -x
+            # rotate root nodes by -x
             rot = Quaternion((1, 0, 0), math.radians(-90))
             for node in self.data.nodes:
                 node.rotation = rot @ node.rotation

@@ -1,0 +1,13 @@
+---
+vertices: 5438
+indices: 20172
+materials:
+	- Material
+	- uv-checker
+	- z-
+	- x
+	- tree
+armatures:
+	- SuzanneArmature
+animations:
+	- SuzanneArmature|SuzanneAction

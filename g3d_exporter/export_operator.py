@@ -12,7 +12,7 @@ import shutil
 
 from g3d_exporter import builder
 from g3d_exporter.builder import ModelOptions
-from g3d_exporter.model import G3dModel
+from g3d_exporter.model import G3dModel, G3dModelInfo
 from g3d_exporter.common import *
 from g3d_exporter import encoder
 
@@ -36,6 +36,12 @@ class BaseG3dExportOperator(ExportHelper):
         name="Apply modifiers",
         description="",
         default=True,
+    )
+
+    descriptor: BoolProperty(
+        name="Descriptor",
+        description="Create human-readable model description (.yaml)",
+        default=False,
     )
 
     use_normal: BoolProperty(
@@ -253,6 +259,9 @@ class BaseG3dExportOperator(ExportHelper):
 
             writepath = self.export_g3d(out, model)
 
+            if self.descriptor:
+                self._write_description(model, writepath.with_suffix(".yaml"))
+
             duration = time.process_time() - start
             self.report({'INFO'}, "Export {:s} ({:.2f} sec)".format(str(writepath), duration))
 
@@ -261,6 +270,11 @@ class BaseG3dExportOperator(ExportHelper):
             log.exception(str(e))
 
         return {'FINISHED'}
+
+    def _write_description(self, g3d: G3dModel, path):
+        info = G3dModelInfo()
+        info.update(g3d)
+        write(encoder.encode_info(info), path)
 
     def _build_options(self) -> ModelOptions:
         opt = ModelOptions()

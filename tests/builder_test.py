@@ -422,7 +422,6 @@ class G3dBuilderTest(BaseTest):
         self.assertEqual(len(mod.meshes[0].parts), 1)
         self.assertEqual(len(mod.nodes), 1)
 
-
     # def test_shapekeys(self):
     #     """
     #     Outliner:

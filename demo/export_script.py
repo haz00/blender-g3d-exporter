@@ -15,12 +15,14 @@ result = bpy.ops.preferences.addon_enable(module='g3d_exporter')
 assert result == {'FINISHED'}, "Failed to enable addon"
 
 options = {
+    'descriptor': True,
     'use_armature': True,
     'use_normal': True,
     'use_actions': True,
     'use_color': True,
     'use_shapekeys': False,
     'fps': 60,
+    'descriptor': True,
 }
 
 bpy.ops.export_scene.g3dj(filepath=str(export_file), **options)
