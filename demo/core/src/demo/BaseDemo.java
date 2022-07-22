@@ -121,6 +121,11 @@ public abstract class BaseDemo extends ApplicationAdapter {
 
     @Override
     public void render() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)){
+            Gdx.app.exit();
+            return;
+        }
+
         totalTime += Gdx.graphics.getDeltaTime();
         camCtl.update();
 

@@ -177,6 +177,7 @@ class BaseG3dExportOperator(ExportHelper):
         layout.row().prop(operator, "selected_only")
         layout.row().prop(operator, "apply_modifiers")
         layout.row().prop(operator, "y_up")
+        layout.row().prop(operator, "descriptor")
 
         # mesh attributes
         box = layout.box()
