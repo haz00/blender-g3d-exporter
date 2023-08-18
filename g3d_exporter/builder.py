@@ -616,6 +616,9 @@ class MeshNodeDataBuilder(object):
         if self.opt.use_binormal:
             meta.attributes.append(BiTangentAttributeBuilder())
 
+        if self.opt.use_tangent or self.opt.use_binormal:
+            mesh.calc_tangents()
+
         color_layers = mesh.vertex_colors
         if self.opt.use_color and len(color_layers) > 0:
             if self.opt.packed_color:
