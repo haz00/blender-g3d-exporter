@@ -51,12 +51,9 @@ def install():
             # check scripts/addons exist
             scipts_folder = addon_path / Path("scripts")
             addons_folder = scipts_folder / Path("addons")
-            if scipts_folder.exists() == False:
-                scipts_folder.mkdir()
-                addons_folder.mkdir()
 
             dst = addons_folder / addon_package
-            dst.mkdir(exist_ok=True)
+            os.makedirs(dst, exist_ok=True)
 
             print(f"install to {dst}")
             shutil.copytree(source_dir, dst, dirs_exist_ok=True)
@@ -70,7 +67,7 @@ def uninstall():
             scipts_folder = addon_path / Path("scripts")
             addons_folder = scipts_folder / Path("addons")
             dst = addons_folder / addon_package
-            if dst.exists() == False:
+            if not dst.exists():
                 continue
 
             print(f"uninstall: {dst}")
@@ -118,7 +115,7 @@ def export_demo(blend_exe: str):
 
 if __name__ == "__main__":
     import platform
-    if (platform.system() == "Windows" or platform.system() == "Linux") == False:
+    if not (platform.system() == "Windows" or platform.system() == "Linux"):
         raise ValueError(f"Host system does not supported by builder: {platform.system()}")
 
     cmd = sys.argv[1]
