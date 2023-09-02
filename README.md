@@ -1,5 +1,5 @@
 # Overview
-Export Blender scene to the native LibGDX model format.
+Export Blender scene to the native [LibGDX](https://github.com/libgdx/libgdx) model format.
 
 The demo folder contains the LibGDX project with examples.
 
