@@ -13,6 +13,7 @@ import hashlib
 import subprocess
 import sys
 import os
+import platform
 from pathlib import Path
 import shutil
 from typing import List
@@ -21,35 +22,56 @@ addon_package = 'g3d_exporter'
 source_dir = Path("g3d_exporter")
 build_path = Path("build")
 
-appdata_path = Path(os.getenv("APPDATA"))
+def addon_install_path():
+    osname = platform.system()
+    if osname == "Linux":
+        return os.path.join(os.getenv("HOME"), ".config/blender")
+    elif osname == "Windows":
+        return os.path.join(os.getenv("APPDATA"), "Blender Foundation/Blender")
+    else:
+        os.exit(0)
 
-blender_addon_paths = [
-    appdata_path / "Blender Foundation/Blender/2.83/scripts/addons",  # lts
-    appdata_path / "Blender Foundation/Blender/2.93/scripts/addons",  # lts
-    appdata_path / "Blender Foundation/Blender/3.0/scripts/addons",
-    appdata_path / "Blender Foundation/Blender/3.1/scripts/addons",
-    appdata_path / "Blender Foundation/Blender/3.2/scripts/addons",
+blender_addon_versions = [
+    "2.8",  # lts
+    "2.9",  # lts
+    "3.0",
+    "3.1",
+    "3.2",
+    "3.3",  # lts
+    "3.4",
+    "3.5",
+    "3.6",  # lts
 ]
 
-
 def install():
-    for addons_path in blender_addon_paths:
+    for addon_version in blender_addon_versions:
+        addon_path = Path(os.path.join(addon_install_path(), addon_version))
+        if addon_path.exists():
 
-        if addons_path.exists():
-            dst = addons_path / addon_package
-            dst.mkdir(exist_ok=True)
+            # check scripts/addons exist
+            scipts_folder = addon_path / Path("scripts")
+            addons_folder = scipts_folder / Path("addons")
+
+            dst = addons_folder / addon_package
+            os.makedirs(dst, exist_ok=True)
 
             print(f"install to {dst}")
             shutil.copytree(source_dir, dst, dirs_exist_ok=True)
 
 
 def uninstall():
-    for addons_path in blender_addon_paths:
-        addon_home = addons_path / addon_package
-        print(f"uninstall {addon_home}")
+    for addon_version in blender_addon_versions:
+        addon_path = Path(os.path.join(addon_install_path(), addon_version))
+        if addon_path.exists():
 
-        if addon_home.exists():
-            shutil.rmtree(addon_home)
+            scipts_folder = addon_path / Path("scripts")
+            addons_folder = scipts_folder / Path("addons")
+            dst = addons_folder / addon_package
+            if not dst.exists():
+                continue
+
+            print(f"uninstall: {dst}")
+            shutil.rmtree(dst)
 
 
 def export_zip() -> Path:
@@ -93,10 +115,12 @@ def export_demo(blend_exe: str):
 
 if __name__ == "__main__":
     import platform
-    if platform.system() != "Windows":
+    if not (platform.system() == "Windows" or platform.system() == "Linux"):
         raise ValueError(f"Host system does not supported by builder: {platform.system()}")
 
     cmd = sys.argv[1]
+
+    print(f"command: {cmd}")
 
     if cmd == "install":
         install()
