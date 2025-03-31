@@ -835,11 +835,15 @@ class ArmatureNodeBuilder(NodeBuilder):
         return self.opt.deform_bones_only and bone.use_deform
 
     def _create_armature_animations(self, armature: model.GNode):
+        log.debug("_create_armature_animations")
         for action in bpy.data.actions:
             if action.users == 0:
+                log.debug("no users")
                 continue
 
             anim = model.GAnimation(f'{armature.id}|{action.name}')
+
+            log.debug("anim: %s %s", anim.id, len(self.obj.pose.bones))
 
             if anim.id in self.g3data.animations:
                 log.debug("skip handled animation: %s", anim.id)
@@ -847,13 +851,17 @@ class ArmatureNodeBuilder(NodeBuilder):
 
             for bone in self.obj.pose.bones:
                 bone_anim = self._new_bone_animation(action, bone)
-
                 if len(bone_anim.keyframes) > 0:
                     anim.bones.append(bone_anim)
+                    log.debug("Added bone animation for: %s", bone.name)
+                else:
+                    log.debug("No keyframes for: %s", bone.name)
 
             if len(anim.bones) > 0:
                 log.debug("add animation: %s", anim.id)
                 self.g3data.animations[anim.id] = anim
+            else:
+                log.debug("no bones for anim: %s", anim.id)
 
     def _new_bone_animation(self, action: bpy.types.Action, b_bone: bpy.types.PoseBone) -> model.GBoneAnimation:
         """
@@ -866,13 +874,19 @@ class ArmatureNodeBuilder(NodeBuilder):
 
         anim_bone = model.GBoneAnimation(b_bone.name)
 
-        if b_bone.name not in action.groups:
+        # Ensure the bone exists in action groups, as this could change in the newer versions
+        bone_fcurves = [curve for curve in action.fcurves if curve.data_path.startswith(f'pose.bones["{b_bone.name}"]')]
+
+        if not bone_fcurves:
+            log.debug("no F-Curves found for bone: %s in action: %s", b_bone.name, action.name)
             return anim_bone
 
         bone_action = BoneAction(b_bone, action)
 
         # if the key true - keyframe will be baked
         keyframes: Dict[int, bool] = dict()
+
+        log.debug("_new_bone_animation: %s", b_bone.name)
 
         # collect the time of all keyframes and decide which should be baked
         for curve in bone_action.curves():
@@ -1119,7 +1133,10 @@ class BoneAction(object):
         self.quat_curves: List[bpy.types.FCurve] = []
         self.euler_curves: List[bpy.types.FCurve] = []
 
-        for curve in action.groups[b_bone.name].channels:
+        # Iterate over all f-curves in the action to find the ones related to this bone
+        bone_fcurves = [curve for curve in action.fcurves if curve.data_path.startswith(f'pose.bones["{b_bone.name}"]')]
+
+        for curve in bone_fcurves:
             # TODO respect existing but disabled curves?
             if curve.data_path.endswith('location'):
                 self.loc_curves.append(curve)

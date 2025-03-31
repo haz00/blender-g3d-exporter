@@ -32,15 +32,8 @@ def addon_install_path():
         os.exit(0)
 
 blender_addon_versions = [
-    "2.8",  # lts
-    "2.9",  # lts
-    "3.0",
-    "3.1",
-    "3.2",
-    "3.3",  # lts
-    "3.4",
-    "3.5",
-    "3.6",  # lts
+    "4.2",  # lts
+    "4.4",
 ]
 
 def install():
