@@ -881,6 +881,9 @@ class ArmatureNodeBuilder(NodeBuilder):
             log.debug("no F-Curves found for bone: %s in action: %s", b_bone.name, action.name)
             return anim_bone
 
+        # ensure that baking animations starts from the beginning
+        bpy.context.scene.frame_set(0)
+
         bone_action = BoneAction(b_bone, action)
 
         # if the key true - keyframe will be baked
