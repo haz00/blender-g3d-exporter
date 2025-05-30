@@ -130,7 +130,13 @@ class MaterialBuilder(object):
             mat.attributes['diffuse'] = unwrapv(bsdf.base_color)
 
         if not self._setup_texture(textures, 'EMISSIVE', bsdf.emission_color_texture):
-            mat.attributes['emissive'] = unwrapv(bsdf.emission_color)
+            val = unwrapv(bsdf.emission_color)
+            strength = bsdf.emission_strength
+            val[0] *= strength
+            val[1] *= strength
+            val[2] *= strength
+            mat.attributes['emissive'] = val
+            mat.flags |= model.GMaterial.fcEmissive
 
         if not self._setup_texture(textures, 'SHININESS', bsdf.roughness_texture):
             mat.attributes['shininess'] = 1.0 - bsdf.roughness
@@ -739,22 +745,86 @@ class MeshNodeDataBuilder(object):
                 return False
         return True
 
-
-class NodeBuilder(object):
+class NodeBuilder:
     """Creates spatial node"""
+
     def __init__(self, obj: bpy.types.Object):
         self.obj = obj
 
     def build(self, id_prefix: str) -> model.GNode:
-        node = model.GNode(id_prefix + self.obj.name, self.obj)
+        # Check if this is a bone (armature object)
+        is_bone = self.obj.type == 'ARMATURE'
+        is_bone_node = hasattr(self.obj, 'bone')  # For bone nodes in armature
 
-        mx: Matrix = self.obj.matrix_world
-        if self.obj.parent:
-            mx = self.obj.parent.matrix_world.inverted() @ mx
+        if is_bone_node:
+            # Handle bone nodes - use rest pose transformation
+            bone = self.obj.bone
+            node = model.GNode(id_prefix + bone.name, self.obj)
 
-        (node.translation, node.rotation, node.scale) = mx.decompose()
+            # Get bone's rest matrix in armature space
+            rest_matrix = bone.matrix_local
 
-        return node
+            # Convert to local space relative to parent bone
+            if bone.parent:
+                parent_rest = bone.parent.matrix_local
+                local_matrix = parent_rest.inverted() @ rest_matrix
+            else:
+                local_matrix = rest_matrix
+
+            # Decompose matrix into translation, rotation, scale
+            translation, rotation, scale = local_matrix.decompose()
+
+            node.translation = translation
+            node.rotation = rotation
+            node.scale = scale
+
+            return node
+
+        elif is_bone:
+            # Handle armature object itself
+            node = model.GNode(id_prefix + self.obj.name, self.obj)
+
+            # Get world matrix of the armature object
+            world_matrix: Matrix = self.obj.matrix_world.copy()
+
+            # If the armature has a parent, convert to local space
+            if self.obj.parent:
+                parent_inv = self.obj.parent.matrix_world.inverted()
+                local_matrix = parent_inv @ world_matrix
+            else:
+                local_matrix = world_matrix
+
+            # Decompose matrix into translation, rotation, scale
+            translation, rotation, scale = local_matrix.decompose()
+
+            node.translation = translation
+            node.rotation = rotation
+            node.scale = scale
+
+            return node
+
+        else:
+            # Handle regular objects
+            node = model.GNode(id_prefix + self.obj.name, self.obj)
+
+            # Get world matrix of the object
+            world_matrix: Matrix = self.obj.matrix_world.copy()
+
+            # If the object has a parent, convert to local space
+            if self.obj.parent:
+                parent_inv = self.obj.parent.matrix_world.inverted()
+                local_matrix = parent_inv @ world_matrix
+            else:
+                local_matrix = world_matrix
+
+            # Decompose matrix into translation, rotation, scale
+            translation, rotation, scale = local_matrix.decompose()
+
+            node.translation = translation
+            node.rotation = rotation
+            node.scale = scale
+
+            return node
 
 
 class MeshNodeBuilder(NodeBuilder):
@@ -841,6 +911,8 @@ class ArmatureNodeBuilder(NodeBuilder):
                 log.debug("no users")
                 continue
 
+            self.obj.animation_data.action = action
+
             anim = model.GAnimation(f'{armature.id}|{action.name}')
 
             log.debug("anim: %s %s", anim.id, len(self.obj.pose.bones))
@@ -851,7 +923,7 @@ class ArmatureNodeBuilder(NodeBuilder):
 
             for bone in self.obj.pose.bones:
                 bone_anim = self._new_bone_animation(action, bone)
-                if len(bone_anim.keyframes) > 0:
+                if len(bone_anim.keyframes) > 0 or ( len(bone_anim.keyframes_translation)> 0 or len(bone_anim.keyframes_rotation) > 0 or len(bone_anim.keyframes_scale) > 0):
                     anim.bones.append(bone_anim)
                     log.debug("Added bone animation for: %s", bone.name)
                 else:
@@ -870,52 +942,123 @@ class ArmatureNodeBuilder(NodeBuilder):
         Populates missing curves (location, rotation, scale) with the rest pose.
 
         Note that the Keyframe time (in Graph Editor) will be rounded to int.
+
+        Will cleanup unecessary keyframes.
+        Splitted by channels.
         """
 
         anim_bone = model.GBoneAnimation(b_bone.name)
 
-        # Ensure the bone exists in action groups, as this could change in the newer versions
-        bone_fcurves = [curve for curve in action.fcurves if curve.data_path.startswith(f'pose.bones["{b_bone.name}"]')]
-
-        if not bone_fcurves:
-            log.debug("no F-Curves found for bone: %s in action: %s", b_bone.name, action.name)
-            return anim_bone
-
-        # ensure that baking animations starts from the beginning
+        # Ensure baking starts from beginning
         bpy.context.scene.frame_set(0)
 
-        bone_action = BoneAction(b_bone, action)
+        # Collect relevant fcurves for this bone
+        bone_fcurves = [fc for layer in action.layers for strip in layer.strips
+                        for slot in action.slots for fc in strip.channelbag(slot).fcurves
+                        if fc.data_path.startswith(f'pose.bones["{b_bone.name}"]')]
 
-        # if the key true - keyframe will be baked
-        keyframes: Dict[int, bool] = dict()
+        if not bone_fcurves:
+            return anim_bone
 
-        log.debug("_new_bone_animation: %s", b_bone.name)
+        # Group fcurves by property
+        grouped = {
+            "location": [None, None, None],
+            "scale": [None, None, None],
+            "rotation_quaternion": [None, None, None, None],
+            "rotation_euler": [None, None, None]
+        }
+        has_keyframes = {prop: False for prop in grouped}
 
-        # collect the time of all keyframes and decide which should be baked
-        for curve in bone_action.curves():
-            for keyframe in curve.keyframe_points:
-                frame = int(keyframe.co[0])
-                must_bake = keyframe.interpolation != 'LINEAR'
-                # must_bake is always primary
-                keyframes[frame] = must_bake or keyframes.get(frame, must_bake)
+        for fc in bone_fcurves:
+            path, idx = fc.data_path, fc.array_index
+            if "location" in path:
+                grouped["location"][idx] = fc
+                has_keyframes["location"] = True
+            elif "scale" in path:
+                grouped["scale"][idx] = fc
+                has_keyframes["scale"] = True
+            elif "rotation_quaternion" in path:
+                grouped["rotation_quaternion"][idx] = fc
+                has_keyframes["rotation_quaternion"] = True
+            elif "rotation_euler" in path:
+                grouped["rotation_euler"][idx] = fc
+                has_keyframes["rotation_euler"] = True
 
-        timeline: List[int] = sorted(keyframes)
+        # Collect frames with explicit keyframes
+        keyed_frames = set()
+        for prop, fcs in grouped.items():
+            if has_keyframes[prop]:
+                for fc in fcs:
+                    if fc:
+                        keyed_frames.update(int(kp.co[0]) for kp in fc.keyframe_points)
 
-        for idx, frame in enumerate(timeline):
-            eval_count = 1
+        # Include action start/end frames
+        action_start = int(action.frame_range[0])
+        action_end = int(action.frame_range[1])
+        keyed_frames.add(action_start)
+        keyed_frames.add(action_end)
+        timeline = sorted(keyed_frames)
 
-            # check if we should bake to the next keyframe
-            if keyframes[frame] and idx + 1 < len(timeline):
-                eval_count = timeline[idx + 1] - frame
+        fps = self.opt.fps or bpy.context.scene.render.fps
+        first_frame = timeline[0] if timeline else 0
+        tolerance = 1e-5  # Value comparison tolerance
 
-            for eval_idx in range(eval_count):
-                cur_frame = frame + eval_idx
-                # first keyframe is the start of animation, so it's millis is 0
-                millis = (1.0 / self.opt.fps) * 1000 * (cur_frame - timeline[0])
+        # Get rest pose transformation
+        rest = b_bone.bone.matrix_local
+        if b_bone.parent:
+            parent_rest = b_bone.parent.bone.matrix_local
+            rest = parent_rest.inverted() @ rest
 
-                pose = bone_action.eval_pose(cur_frame)
-                key = model.GBoneKeyframe(millis, pose)
-                anim_bone.keyframes.append(key)
+        # Decompose rest pose for comparison
+        rest_trans, rest_rot, rest_scale = rest.decompose()
+
+        for frame in timeline:
+            time_ms = ((frame - first_frame) / fps) * 1000
+
+            # Evaluate fcurves or use identity for unkeyed properties
+            loc = Vector([
+                fc.evaluate(frame) if fc else 0.0
+                for fc in grouped["location"]
+            ]) if has_keyframes["location"] else Vector((0, 0, 0))
+
+            scl = Vector([
+                fc.evaluate(frame) if fc else 1.0
+                for fc in grouped["scale"]
+            ]) if has_keyframes["scale"] else Vector((1, 1, 1))
+
+            if has_keyframes["rotation_quaternion"]:
+                rot = Quaternion([
+                    fc.evaluate(frame) if fc else (1.0 if i == 0 else 0.0)
+                    for i, fc in enumerate(grouped["rotation_quaternion"])
+                ])
+            elif has_keyframes["rotation_euler"]:
+                angles = [
+                    fc.evaluate(frame) if fc else 0.0
+                    for fc in grouped["rotation_euler"]
+                ]
+                rot = Euler(angles, b_bone.rotation_mode).to_quaternion()
+            else:
+                rot = Quaternion((1, 0, 0, 0))
+
+            # Compose transformation matrix
+            mat = new_transorm_matrix(loc, rot, scl)
+            pose = rest @ mat
+            trans, rot_quat, scale = pose.decompose()
+
+            # Add keyframes only if different from rest pose or at boundaries
+            if (frame == action_start or frame == action_end or
+                (trans - rest_trans).length > tolerance):
+                anim_bone.keyframes_translation.append(model.KFTranslation(time_ms, trans))
+
+            if (frame == action_start or frame == action_end or
+                (scale - rest_scale).length > tolerance):
+                anim_bone.keyframes_scale.append(model.KFScale(time_ms, scale))
+
+            # Special handling for rotation comparison
+            dot = abs(rest_rot.dot(rot_quat))
+            if (frame == action_start or frame == action_end or
+                abs(dot - 1.0) > tolerance):
+                anim_bone.keyframes_rotation.append(model.KFRotation(time_ms, rot_quat))
 
         return anim_bone
 
@@ -1039,7 +1182,6 @@ class G3Builder(object):
 
         elif obj.type == 'EMPTY':
             node: model.GNode = None
-
             if self._can_adopt(obj, selected_only):
                 node = NodeBuilder(obj).build(id_prefix)
                 log.debug("new node %s", node.id)
@@ -1124,59 +1266,6 @@ class G3Builder(object):
     @profile
     def _make_animations(self, mod: model.G3dModel):
         mod.animations = list(self.data.animations.values())
-
-
-class BoneAction(object):
-    """Encapsulates valid curves"""
-
-    def __init__(self, b_bone: bpy.types.PoseBone, action: bpy.types.Action) -> None:
-        self.b_bone = b_bone
-        self.loc_curves: List[bpy.types.FCurve] = []
-        self.scale_curves: List[bpy.types.FCurve] = []
-        self.quat_curves: List[bpy.types.FCurve] = []
-        self.euler_curves: List[bpy.types.FCurve] = []
-
-        # Iterate over all f-curves in the action to find the ones related to this bone
-        bone_fcurves = [curve for curve in action.fcurves if curve.data_path.startswith(f'pose.bones["{b_bone.name}"]')]
-
-        for curve in bone_fcurves:
-            # TODO respect existing but disabled curves?
-            if curve.data_path.endswith('location'):
-                self.loc_curves.append(curve)
-            elif curve.data_path.endswith('scale'):
-                self.scale_curves.append(curve)
-            elif curve.data_path.endswith('rotation_quaternion'):
-                self.quat_curves.append(curve)
-            elif curve.data_path.endswith('rotation_euler'):
-                self.euler_curves.append(curve)
-
-    def curves(self) -> List[bpy.types.FCurve]:
-        return flatten([self.loc_curves, self.scale_curves, self.quat_curves, self.euler_curves])
-
-    def eval_pose(self, frame: int) -> Matrix:
-        loc = self._eval_curves(frame, self.loc_curves, Vector())
-        scale = self._eval_curves(frame, self.scale_curves, Vector((1, 1, 1)))
-        quat = self._eval_curves(frame, self.quat_curves, Quaternion())
-        euler = self._eval_curves(frame, self.euler_curves, Euler())
-
-        if self.b_bone.rotation_mode != 'QUATERNION':
-            quat = euler.to_quaternion()
-
-        trans = new_transorm_matrix(loc, quat, scale)
-        rest = self.b_bone.bone.matrix_local
-
-        if self.b_bone.parent:
-            # relative to parent
-            rest = self.b_bone.parent.bone.matrix_local.inverted() @ rest
-
-        return rest @ trans
-
-    def _eval_curves(self, frame: int,
-                     curves: List[bpy.types.FCurve],
-                     into: Union[Vector, Quaternion, Euler]) -> Union[Vector, Quaternion, Euler]:
-        for curve in curves:
-            into[curve.array_index] = curve.evaluate(frame)
-        return into
 
 
 @profile
