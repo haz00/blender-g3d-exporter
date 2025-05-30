@@ -937,13 +937,13 @@ class ArmatureNodeBuilder(NodeBuilder):
 
     def _new_bone_animation(self, action: bpy.types.Action, b_bone: bpy.types.PoseBone) -> model.GBoneAnimation:
         """
-        Creates bone keyframes. Bakes for non-linear.
+        Creates bone keyframes. Bakes for non-linear curves.
         The first keyframe will have 0 millis.
         Populates missing curves (location, rotation, scale) with the rest pose.
 
         Note that the Keyframe time (in Graph Editor) will be rounded to int.
 
-        Will cleanup unecessary keyframes.
+        Will cleanup unnecessary keyframes.
         Splitted by channels.
         """
 
@@ -968,37 +968,53 @@ class ArmatureNodeBuilder(NodeBuilder):
             "rotation_euler": [None, None, None]
         }
         has_keyframes = {prop: False for prop in grouped}
+        needs_baking = {prop: False for prop in grouped}  # Track if baking is needed
 
+        # Collect and analyze curves
         for fc in bone_fcurves:
             path, idx = fc.data_path, fc.array_index
             if "location" in path:
                 grouped["location"][idx] = fc
                 has_keyframes["location"] = True
+                # Check if baking is needed (non-linear interpolation)
+                if any(kp.interpolation != 'LINEAR' for kp in fc.keyframe_points):
+                    needs_baking["location"] = True
             elif "scale" in path:
                 grouped["scale"][idx] = fc
                 has_keyframes["scale"] = True
+                if any(kp.interpolation != 'LINEAR' for kp in fc.keyframe_points):
+                    needs_baking["scale"] = True
             elif "rotation_quaternion" in path:
                 grouped["rotation_quaternion"][idx] = fc
                 has_keyframes["rotation_quaternion"] = True
+                if any(kp.interpolation != 'LINEAR' for kp in fc.keyframe_points):
+                    needs_baking["rotation_quaternion"] = True
             elif "rotation_euler" in path:
                 grouped["rotation_euler"][idx] = fc
                 has_keyframes["rotation_euler"] = True
+                if any(kp.interpolation != 'LINEAR' for kp in fc.keyframe_points):
+                    needs_baking["rotation_euler"] = True
 
-        # Collect frames with explicit keyframes
-        keyed_frames = set()
-        for prop, fcs in grouped.items():
-            if has_keyframes[prop]:
-                for fc in fcs:
-                    if fc:
-                        keyed_frames.update(int(kp.co[0]) for kp in fc.keyframe_points)
-
-        # Include action start/end frames
+        # Get action range
         action_start = int(action.frame_range[0])
         action_end = int(action.frame_range[1])
-        keyed_frames.add(action_start)
-        keyed_frames.add(action_end)
-        timeline = sorted(keyed_frames)
+        timeline = set()
+        timeline.add(action_start)
+        timeline.add(action_end)
 
+        # Build timeline based on baking needs
+        for prop in grouped:
+            if has_keyframes[prop]:
+                # Add keyframes for this property
+                for fc in grouped[prop]:
+                    if fc:
+                        timeline.update(int(kp.co[0]) for kp in fc.keyframe_points)
+
+                # If baking needed, add all frames in range
+                if needs_baking[prop]:
+                    timeline.update(range(action_start, action_end + 1))
+
+        timeline = sorted(timeline)
         fps = self.opt.fps or bpy.context.scene.render.fps
         first_frame = timeline[0] if timeline else 0
         tolerance = 1e-5  # Value comparison tolerance
